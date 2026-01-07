@@ -1,0 +1,935 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Palliative Care Calculators | Clinical Pharmacist</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+    <style>
+        :root{
+            --bg-gradient: linear-gradient(135deg,#f8fafc 0%,#e3f2fd 100%);
+            --header-gradient: linear-gradient(135deg,#007bff,#0056b3);
+            --primary-gradient: linear-gradient(135deg,#28a745,#20c997);
+            --primary-gradient-hover: linear-gradient(135deg,#1e7e34,#1baa7f);
+            --demo-gradient: linear-gradient(135deg,#6b7280,#4b5563);
+            --demo-gradient-hover: linear-gradient(135deg,#4b5563,#374151);
+            --vip-gradient: linear-gradient(45deg,#ffd700,#ffed4e);
+            --trial-gradient: linear-gradient(135deg,#10b981,#059669);
+            --hero-bg-gradient: linear-gradient(135deg,rgba(0,123,255,0.1),rgba(37,99,235,0.05));
+            --team-gradient: linear-gradient(135deg,#f8fafc,#e2e8f0);
+            --coming-gradient: linear-gradient(135deg,#fef3c7,#fde68a);
+            --support-gradient: linear-gradient(135deg,#fef7ff,#f3e8ff);
+            --feedback-gradient: linear-gradient(135deg,#f0fdf4,#dcfce7);
+            --logout-gradient: linear-gradient(135deg,#dc3545,#c82333);
+            --logout-gradient-hover: linear-gradient(135deg,#c82333,#a71e2a);
+        }
+
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            font-family:'Inter',sans-serif;
+            line-height:1.4;
+            color:#1e293b;
+            background:var(--bg-gradient);
+            overflow-x:hidden;
+        }
+        .container{max-width:480px;margin:0 auto;padding:0 20px;}
+        
+        /* Header */
+        header{
+            position:sticky;top:0;z-index:100;
+            background:var(--header-gradient);
+            color:white;padding:15px 0;
+            box-shadow:0 2px 20px rgba(0,123,255,0.3);
+        }
+        .header-content{display:flex;align-items:center;justify-content:space-between;}
+        .logo{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+        .user-info{font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;}
+        .welcome-text{font-weight:600;}
+        .vip-badge{
+            background:var(--vip-gradient);color:#1a1a1a;
+            padding:4px 12px;border-radius:20px;
+            font-size:12px;font-weight:600;
+            text-transform:uppercase;letter-spacing:0.5px;
+            animation:pulse 2s infinite;
+        }
+        #login-btn{
+            background:transparent;color:white;
+            border:2px solid rgba(255,255,255,0.8);
+            padding:8px 16px;border-radius:20px;
+            font-weight:600;transition:all 0.3s ease;
+            cursor:pointer;display:block;
+        }
+        #login-btn:hover{background:rgba(255,255,255,0.1);border-color:white;}
+        #logout-btn{
+            background:var(--logout-gradient);
+            color:white;border:none;
+            padding:8px 16px;border-radius:20px;
+            font-weight:600;font-size:14px;
+            cursor:pointer;transition:all 0.3s ease;
+            display:flex;align-items:center;gap:6px;
+            box-shadow:0 2px 8px rgba(220,53,69,0.4);
+        }
+        #logout-btn:hover{
+            background:var(--logout-gradient-hover);
+            transform:translateY(-1px);
+            box-shadow:0 4px 12px rgba(220,53,69,0.6);
+        }
+        .vip-only{
+            background:var(--vip-gradient);color:#1a1a1a;
+            padding:4px 8px;border-radius:12px;
+            font-size:11px;font-weight:600;
+            text-transform:uppercase;letter-spacing:0.3px;
+            white-space:nowrap;max-width:140px;display:inline-block;
+        }
+        
+        /* Login Modal - WCAG AA */
+        .login-modal{
+            display:none;position:fixed;top:0;left:0;
+            width:100%;height:100vh;background:rgba(0,0,0,0.7);
+            z-index:1000;justify-content:center;align-items:center;
+            padding:20px;box-sizing:border-box;
+        }
+        .login-content{
+            background:white;border-radius:20px;
+            max-width:380px;width:100%;max-height:90vh;
+            padding:32px;margin:20px 0;
+            box-shadow:0 20px 60px rgba(0,0,0,0.3);
+            overflow-y:auto;position:relative;
+        }
+        .login-close{
+            position:absolute;top:16px;right:20px;
+            font-size:28px;font-weight:bold;cursor:pointer;
+            color:#aaa;z-index:1001;
+        }
+        .login-close:hover{color:#000;}
+        .login-title{font-size:24px;font-weight:700;color:#1e293b;margin-bottom:24px;text-align:center;}
+        .form-group{margin-bottom:20px;}
+        .form-label{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:8px;display:block;}
+        .form-input{
+            width:100%;padding:14px 16px;
+            border:2px solid #d1d5db;border-radius:12px;
+            font-size:15px;font-family:'Inter',sans-serif;
+            transition:all 0.3s ease;
+        }
+        .form-input:focus{
+            outline:none;border-color:#10b981;
+            box-shadow:0 0 0 3px rgba(16,185,129,0.1);
+        }
+        .login-btn-submit{
+            width:100%;background:var(--primary-gradient);
+            color:white;border:none;padding:14px;
+            font-weight:600;border-radius:12px;
+            cursor:pointer;font-size:16px;
+        }
+        .login-btn-submit:hover{background:var(--primary-gradient-hover);}
+        .login-btn-submit:disabled{background:#94a3b8;cursor:not-allowed;}
+        .forgot-password{text-align:center;font-size:13px;color:#64748b;margin-top:12px;}
+        .forgot-password a{color:#007bff;text-decoration:none;font-weight:500;}
+        .forgot-password a:hover{text-decoration:underline;}
+        
+        /* Hero - Improved contrast */
+        .hero{
+            padding:32px 0 20px;
+            background:var(--hero-bg-gradient);
+            text-align:center;
+        }
+        .hero h1{
+            font-size:clamp(28px,5vw,36px);
+            font-weight:700;margin-bottom:12px;
+            background:linear-gradient(135deg,#007bff,#28a745);
+            background-clip:text;-webkit-background-clip:text;
+            -webkit-text-fill-color:transparent;
+        }
+        .hero-subtitle{
+            font-size:16px;color:#1e293b;font-weight:500;
+            margin-bottom:16px;max-width:400px;line-height:1.4;
+        }
+        .hospital-badge{
+            padding:8px 20px;border-radius:30px;
+            font-size:14px;font-weight:600;display:inline-block;
+            background:rgba(255,255,255,0.9);color:#1e293b;
+        }
+        
+        /* Action Buttons - Demo button smaller */
+        .action-buttons{display:grid;gap:12px;margin-bottom:24px;}
+        .action-buttons.hidden{display:none;}
+        .btn{
+            display:block;padding:16px 24px;
+            font-size:16px;font-weight:600;
+            text-decoration:none;text-align:center;
+            border-radius:12px;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+            touch-action:manipulation;min-height:52px;
+            display:flex;align-items:center;justify-content:center;
+            gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.1);
+            border:none;cursor:pointer;
+        }
+        .btn:focus{outline:3px solid rgba(16,185,129,0.5);outline-offset:2px;}
+        .btn-primary{background:var(--primary-gradient);color:white;}
+        .btn-primary:hover{
+            background:var(--primary-gradient-hover);
+            transform:translateY(-2px);
+            box-shadow:0 8px 25px rgba(40,167,69,0.4);
+        }
+        .btn-demo{
+            background:var(--demo-gradient);color:white;
+            padding:12px 20px;font-size:14px;min-height:44px;
+        }
+        .btn-demo:hover{background:var(--demo-gradient-hover);transform:translateY(-2px);}
+        
+        /* Tools Available */
+        .tools-section{display:none;}
+        .tools-section.visible{display:grid;gap:16px;margin:24px 0;}
+        .tool-btn{
+            padding:20px;border-radius:16px;background:white;
+            box-shadow:0 8px 30px rgba(0,0,0,0.08);
+            border:2px solid #e5e7eb; /* Light gray border */
+            cursor:pointer;font-weight:600;
+            font-size:16px;transition:all 0.3s ease;
+            text-align:left;display:flex;align-items:center;
+            gap:16px;text-decoration:none;color:inherit;
+        }
+        .tool-btn:hover{
+            transform:translateY(-4px);
+            box-shadow:0 20px 40px rgba(0,0,0,0.15);
+            border-color:#10b981; /* Green accent on hover */
+        }        
+        .tool-btn:focus{outline:3px solid rgba(16,185,129,0.5);outline-offset:2px;}
+        .tool-icon{font-size:32px;}
+        
+        /* Info Cards */
+        .info-grid{
+            display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+            gap:12px;margin:20px 0;
+        }
+        .info-card{
+            background:white;border-radius:12px;
+            padding:16px;text-align:center;
+            box-shadow:0 4px 15px rgba(0,0,0,0.08);
+        }
+        .info-number{font-size:24px;font-weight:700;color:#007bff;}
+        .info-label{font-size:13px;color:#64748b;}
+        .version-badge{background:#10b981;color:white;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;}
+        
+        /* Features/Tools */
+        .features{padding:24px 0;}
+        .section-title{text-align:center;font-size:24px;font-weight:700;color:#1e293b;margin-bottom:20px;}
+        .features-grid{display:grid;gap:20px;}
+        .feature-card{
+            background:white;border-radius:16px;padding:20px;
+            box-shadow:0 8px 30px rgba(0,0,0,0.08);
+            transition:all 0.3s ease;border:1px solid rgba(255,255,255,0.2);
+        }
+        .feature-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(0,0,0,0.12);}
+        .feature-icon{font-size:32px;color:#007bff;display:block;margin:0 auto 12px auto;text-align:center;}
+        .feature-title{font-size:18px;font-weight:600;color:#1e293b;margin-bottom:6px;text-align:center;}
+        .feature-desc{color:#64748b;font-size:15px;margin-top:4px;text-align:center;}
+        
+        /* Team - Reduced size */
+        .team{
+            background:var(--team-gradient);
+            padding:16px 0;margin:16px 0;
+            border-radius:20px;overflow:hidden;
+            box-shadow:0 6px 30px rgba(0,0,0,0.06);
+        }
+        .team-header{text-align:center;margin-bottom:16px;}
+        .team-title{font-size:20px;font-weight:700;color:#1e293b;margin-bottom:4px;}
+        .team-subtitle{font-size:14px;color:#64748b;font-weight:500;max-width:320px;margin:0 auto;line-height:1.4;}
+        .team-grid{display:grid;gap:12px;}
+        .team-member{
+            background:white;border-radius:16px;padding:16px;
+            text-align:center;transition:all 0.3s ease;
+            border:2px solid transparent;
+            box-shadow:0 4px 15px rgba(0,0,0,0.05);
+        }
+        .team-member:hover{transform:translateY(-2px);border-color:#007bff;box-shadow:0 12px 30px rgba(0,123,255,0.12);}
+        .team-avatar{font-size:36px;margin-bottom:8px;display:block;}
+        .team-avatar i{font-size:36px;}
+        .team-role{font-size:12px;color:#28a745;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;}
+        .team-name{font-size:16px;font-weight:600;color:#1e293b;margin-bottom:6px;}
+        .team-desc{font-size:13px;color:#64748b;line-height:1.4;}
+        
+        /* Coming Soon - Reduced size */
+        .coming-soon{
+            background:var(--coming-gradient);
+            padding:16px 0;margin:16px 0;
+            border-radius:20px;overflow:hidden;
+            box-shadow:0 6px 30px rgba(251,191,36,0.15);
+        }
+        .coming-header{text-align:center;margin-bottom:16px;}
+        .coming-title{font-size:20px;font-weight:700;color:#92400e;margin-bottom:4px;}
+        .coming-subtitle{font-size:14px;color:#7c2d12;font-weight:500;line-height:1.4;}
+        .coming-grid{display:grid;gap:12px;}
+        .coming-item{
+            background:white;border-radius:16px;padding:16px;
+            text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.08);
+            border-left:4px solid #f59e0b;transition:all 0.3s ease;
+        }
+        .coming-item:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(0,0,0,0.12);}
+        .coming-icon{font-size:36px;color:#f59e0b;margin-bottom:8px;display:block;}
+        .coming-name{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:4px;}
+        .coming-desc{font-size:13px;color:#666;margin-bottom:8px;line-height:1.3;}
+        .coming-status{font-size:11px;color:#d97706;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+        
+        /* Feedback */
+        .feedback{
+            background:var(--feedback-gradient);
+            padding:24px 0;margin:24px 0;
+            border-radius:24px;overflow:hidden;
+            box-shadow:0 8px 40px rgba(34,197,94,0.2);
+        }
+        .feedback-header{text-align:center;margin-bottom:20px;}
+        .feedback-title{font-size:22px;font-weight:700;color:#166534;margin-bottom:6px;}
+        .feedback-subtitle{font-size:15px;color:#15803d;font-weight:500;line-height:1.4;}
+        .feedback-form{
+            background:white;border-radius:16px;
+            padding:24px;box-shadow:0 4px 20px rgba(0,0,0,0.08);
+        }
+        .form-group{margin-bottom:16px;}
+        .form-group:last-child{margin-bottom:0;}
+        .form-textarea{resize:vertical;min-height:100px;}
+        
+        /* Animations */
+        @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(30px);}to{opacity:1;transform:translateY(0);}}
+        .fade-in-up{animation:fadeInUp 0.8s ease forwards;will-change:transform;}
+        
+        /* iOS Safari */
+        @media (max-width:480px){
+            .container{padding:0 16px;}
+            .info-grid{grid-template-columns:repeat(2,1fr);}
+            .team-grid{grid-template-columns:1fr;}
+            body{padding-bottom:env(safe-area-inset-bottom);}
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo" role="img" aria-label="Syringe PalliCalc logo">💉 PalliCalc</div>
+                <div id="user-info" class="user-info">
+                    <button id="login-btn" class="login-btn" aria-label="Login to access calculators">🔐 Login</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="hero fade-in-up">
+            <h1>Clinically Verified Palliative Calculators</h1>
+            <p class="hospital-badge" role="img" aria-label="Hospital developed badge">🏥Developed by clinical palliative pharmacist + multidisciplinary team at Malaysia state government hospital</p>
+        </section>
+
+        <div id="action-buttons" class="action-buttons">
+            <button class="btn btn-primary" id="register-btn">
+                <span class="trial-icon" role="img" aria-label="Celebration icon">🎉</span>
+                <i class="bi bi-person-plus" aria-hidden="true"></i> Free VIP Member Registration (beta trial)
+            </button>
+            <button class="btn btn-demo" id="demo-btn" aria-label="Try opioid calculator demo">
+                <i class="bi bi-calculator" aria-hidden="true"></i> Try Opioid Calculator Demo
+            </button>
+        </div>
+
+        <div id="tools-section" class="tools-section">
+            <h2 id="tools-title"
+                style="text-align:center;font-size:24px;font-weight:700;color:#1e293b;margin-bottom:20px;"
+                aria-label="Tools available">
+                🛠️ Tools Available
+            </h2>
+
+            <a href="all-calculators.html" class="tool-btn" aria-label="All calculators page">
+                <span class="tool-icon" role="img" aria-label="Pill icon">💊</span>
+                <span>All calculators
+                    <span id="user-tier-badge" class="vip-badge" style="display:none;">VIP</span>
+                </span>
+            </a>
+
+            <a href="patient-education.html" class="tool-btn" aria-label="Patient information pamphlets">
+                <span class="tool-icon" role="img" aria-label="Information sheets icon">📄</span>
+                <span>Patient information pamphlets</span>
+            </a>
+
+            <a href="healthcare-guidelines.html" class="tool-btn" aria-label="Healthcare guidelines">
+                <span class="tool-icon" role="img" aria-label="Guidelines icon">📘</span>
+                <span>Healthcare guidelines</span>
+            </a>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-number" id="total-members" aria-live="polite">0</div>
+                <div class="info-label">Total Members</div>
+            </div>
+            <div class="info-card">
+                <div class="info-number" id="vip-members" aria-live="polite">0</div>
+                <div class="info-label">VIP Members</div>
+            </div>
+            <div class="info-card">
+                <div class="version-badge">v1.0 Beta</div>
+                <div class="info-label">Launched Dec 2025</div>
+            </div>
+            <div class="info-card">
+                <a href="app.html" class="btn" style="font-size:14px;padding:12px;" aria-label="Open PalliCalc App">
+                    <i class="bi bi-phone-fill" aria-hidden="true"></i> Open App
+                </a>
+            </div>
+        </div>
+
+        <section id="features-section" class="features fade-in-up">
+            <h2 class="section-title" id="section-title">What You'll Get</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="bi bi-calculator feature-icon" aria-hidden="true"></i>
+                    <h3 class="feature-title">Calculators & Customization</h3>
+                    <p class="feature-desc">Verified Opioid, Benzodiazepine & Infusion tools.</p>
+                    <p class="feature-desc" style="font-weight:600; color:#007bff; margin-top:8px;">VIP: Edit conversion ratios to match local protocols.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <i class="bi bi-journal-medical feature-icon" aria-hidden="true"></i>
+                    <h3 class="feature-title">Clinical & Patient Resources</h3>
+                    <p class="feature-desc">Evidence-based healthcare guidelines.</p>
+                    <p class="feature-desc">Printable, multilingual patient education pamphlets.</p>
+                    <p class="feature-desc" style="font-weight:600; color:#007bff; margin-top:8px;">New: Add personalized institution details to pamphlet footer.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="bi bi-gem feature-icon" aria-hidden="true"></i>
+                    <h3 class="feature-title">VIP Exclusives</h3>
+                    <p class="feature-desc">Save custom settings & export results.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="team fade-in-up">
+            <div class="team-header">
+                <h2 class="team-title">✅ Clinically Verified Content</h2>
+                <p class="team-subtitle"> Content and calculators validated by multidisciplinary team following Malaysian MOH guidelines</p>
+            </div>
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="team-avatar" role="img" aria-label="Clinical pharmacist avatar">💊</div>
+                    <div class="team-role">Clinical Pharmacist</div>
+                    <div class="team-name">Developer</div>
+                    <div class="team-desc">10+ years experience. Built all content and calculators.</div>
+                </div>
+                <div class="team-member">
+                    <div class="team-avatar" role="img" aria-label="Palliative consultant doctor icon">
+                        <i class="bi bi-file-medical" aria-hidden="true"></i>
+                    </div>
+                    <div class="team-role">Palliative Consultants and MOs</div>
+                    <div class="team-name">Clinical Oversight</div>
+                    <div class="team-desc">calculator validation & guideline review.</div>
+                </div>
+                <div class="team-member">
+                    <div class="team-avatar" role="img" aria-label="Frontline medical team avatar">🩺</div>
+                    <div class="team-role">Frontline Team</div>
+                    <div class="team-name">Practical Testing</div>
+                    <div class="team-desc">Daily clinical workflow validation in state hospital.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="coming-soon fade-in-up">
+            <div class="coming-header">
+                <h2 class="coming-title">🔥 Coming Soon</h2>
+                <p class="coming-subtitle">VIP members get priority access</p>
+            </div>
+            <div class="coming-grid">
+                <div class="coming-item">
+                    <i class="bi bi-tools coming-icon" aria-hidden="true"></i>
+                    <div class="coming-name">New Calculators</div>
+                    <div class="coming-desc">Corticosteroid Converter & Prognostic Index</div>
+                    <div class="coming-status">Q2 2026</div>
+                </div>
+                <div class="coming-item">
+                    <i class="bi bi-journal-text coming-icon" aria-hidden="true"></i>
+                    <div class="coming-name">Content Updates</div>
+                    <div class="coming-desc">Continuous expansion of Guidelines & Patient Pamphlets</div>
+                    <div class="coming-status">Ongoing</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="feedback fade-in-up">
+            <div class="feedback-header">
+                <h2 class="feedback-title">💬 Help Us Improve</h2>
+                <p class="feedback-subtitle">VIP feedback shapes future tools</p>
+            </div>
+            <form class="feedback-form" id="feedback-form">
+                <div class="form-group">
+                    <label class="form-label" for="feedback-text">Your Feedback</label>
+                    <textarea id="feedback-text" class="form-input form-textarea" placeholder="What features would you like? Calculator suggestions?" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="feedback-email">Email (optional)</label>
+                    <input type="email" id="feedback-email" class="form-input" placeholder="your@email.com">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Send Feedback</button>
+            </form>
+        </section>
+    </main>
+
+    <div id="login-modal" class="login-modal" role="dialog" aria-labelledby="login-title" aria-modal="true">
+        <div class="login-content">
+            <span class="login-close" id="login-close" aria-label="Close login modal">&times;</span>
+            <h2 class="login-title" id="login-title">🔐 Login to PalliCalc</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="form-input" required autocomplete="email" aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <input type="password" id="login-password" class="form-input" required autocomplete="current-password" aria-required="true">
+                </div>
+                
+                <div id="login-error-msg" style="display:none; background-color: #fee2e2; color: #dc2626; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; text-align: center; border: 1px solid #fca5a5;">
+                    </div>
+
+                <button type="submit" class="login-btn-submit">Login Securely</button>
+                <div class="forgot-password">
+                    <a href="forgot-password.html">Forgot Password?</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="disclaimer-modal" class="login-modal" role="dialog" aria-labelledby="disclaimer-title" aria-modal="true">
+        <div class="login-content">
+            <span class="login-close" id="disclaimer-close" aria-label="Close disclaimer">&times;</span>
+            <h2 class="login-title" id="disclaimer-title">⚠️ PalliCalc Disclaimer</h2>
+            <div style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                <p><strong>This calculator is for educational purposes only.</strong> It does not replace clinical judgment or individualized patient assessment (age, body mass, liver/kidney function, medications, psychological status, treatment goals).</p>
+                <ul style="margin: 12px 0; padding-left: 20px; font-size: 14px;">
+                    <li>Provides general opioid dose conversions - not tailored to specific pain conditions</li>
+                    <li>Does not advise on initiation, tapering, drug interactions, side effects, or special populations</li>
+                    <li>Long-term opioid therapy for chronic non-cancer pain is controversial - consult guidelines</li>
+                    <li>Methadone, fentanyl lozenges, and neuraxial opioids excluded (complex pharmacokinetics)</li>
+                </ul>
+                <p><strong>Liability:</strong> Developer not responsible for errors, omissions, or outcomes. Always use clinical judgment and consult institutional protocols.</p>
+            </div>
+            <label style="display: block; margin: 20px 0 12px 0; font-size: 16px; font-weight: 600; color: #334155; text-align: center;">
+                <input type="checkbox" id="disclaimer-agree" style="margin-right: 8px; transform: scale(1.2);"> 
+                I have read, understand, and agree to the disclaimer
+            </label>
+            <button id="disclaimer-proceed" class="login-btn-submit" disabled style="background: #94a3b8;">I Agree & Proceed</button>
+            <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 12px;">
+                <a href="http://pallicalc.netlify.app" target="_blank">Terms</a> | 
+                <a href="http://pallicalc.netlify.app" target="_blank">Privacy</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 🔥 PRODUCTION FIREBASE CONFIG
+        const firebaseConfig = {
+          apiKey: "AIzaSyAioaDxAEh3Cd-8Bvad9RgWXoOzozGeE_s",
+          authDomain: "pallicalc-eabdc.firebaseapp.com",
+          projectId: "pallicalc-eabdc",
+          storageBucket: "pallicalc-eabdc.firebasestorage.app",
+          messagingSenderId: "347532270864",
+          appId: "1:347532270864:web:bfe5bd1b92ccec22dc5995",
+          measurementId: "G-6G9C984F8E"
+        };
+        
+        let firebaseApp, auth, db;
+        let currentUser = null;
+        let isVipUser = false;
+        let counterTimeout;
+        
+        // Initialize Firebase
+        window.addEventListener('load', async () => {
+            try {
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                initApp();
+            } catch (error) {
+                console.error('Firebase init failed:', error);
+            }
+        });
+
+        // ✅ UPDATED initApp() WITH DISCLAIMER HANDLERS
+        function initApp() {
+            updateCounters();
+            setInterval(() => debounceCounters(), 30000);
+            auth.onAuthStateChanged(checkAuthState);
+            setupEventListeners();
+            setupDisclaimerHandlers(); // ✅ ADDED DISCLAIMER HANDLERS
+        }
+
+        // Debounced counters
+        function debounceCounters() {
+            clearTimeout(counterTimeout);
+            counterTimeout = setTimeout(updateCounters, 500);
+        }
+
+        // Update 2-tier counters
+        async function updateCounters() {
+            if (!db) return;
+            try {
+                const totalSnapshot = await db.collection('users').get();
+                document.getElementById('total-members').textContent = totalSnapshot.size || 0;
+
+                const vipSnapshot = await db.collection('users').where('tier', '==', 'vip').get();
+                document.getElementById('vip-members').textContent = vipSnapshot.size || 0;
+            } catch(e) {
+                console.log('Counters unavailable');
+            }
+        }
+
+        // Check user tier (beta = VIP)
+        async function checkUserTier(user) {
+            if (!user || !db) return false;
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const data = userDoc.data();
+                    return data.tier === 'vip' || data.registeredDuringBeta === true;
+                }
+                return false;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        // ✅ UPDATED: Auth state handler with SECURITY VERIFICATION, REDIRECTS and DATA LOADING
+        async function checkAuthState(user) {
+            currentUser = user;
+            const userInfo = document.getElementById('user-info');
+            
+            // Define elements
+            const vipBadge = document.getElementById('user-tier-badge');
+            const vipLock = document.getElementById('vip-lock-opioid');
+            const actionBtns = document.getElementById('action-buttons');
+            const toolsSection = document.getElementById('tools-section');
+            const featureSection = document.getElementById('features-section');
+            const toolsTitle = document.querySelector('#tools-section h2');
+            const featureTitle = document.querySelector('#features-section h2');
+            
+            if (user) {
+                // 🛑 SECURITY CHECK: IS EMAIL VERIFIED?
+                // If they are NOT verified, force them to logout and show a message
+                if (!user.emailVerified) {
+                    console.log("User email not verified. Logging out.");
+                    
+                    // Force Logout
+                    await auth.signOut();
+                    
+                    // Show a specific error in the login modal
+                    const errorDiv = document.getElementById('login-error-msg');
+                    if(errorDiv) {
+                        errorDiv.textContent = "Please verify your email address before logging in. Check your inbox (and spam).";
+                        errorDiv.style.display = 'block';
+                    }
+                    
+                    // Re-open the login modal so they see the error
+                    openLoginModal();
+                    return; // STOP HERE. Do not load the dashboard.
+                }
+
+                try {
+                    // 1. Get User Profile from Firestore
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    let userData = {};
+                    
+                    if (userDoc.exists) {
+                        userData = userDoc.data();
+                        
+                        // 🛑 CHECK 1: IS THIS AN ADMIN?
+                        if (userData.role === 'institutionAdmin') {
+                            console.log("Admin detected. Redirecting to Dashboard...");
+                            window.location.href = 'Admin.html';
+                            return; // Stop everything else, we are leaving this page
+                        }
+
+                        // 🏥 CHECK 2: IS THIS AN INSTITUTION USER?
+                        if (userData.role === 'institutionUser' && userData.institutionId) {
+                            console.log("Institution User detected. Loading custom protocols...");
+                            
+                            // Fetch their Institution's Settings
+                            const instDoc = await db.collection('institutions').doc(userData.institutionId).get();
+                            if (instDoc.exists) {
+                                const instData = instDoc.data();
+                                
+                                // Save their hospital's custom ratios to LocalStorage
+                                // Your calculator pages will look for this specifically
+                                if (instData.customRatios) {
+                                    localStorage.setItem('palliCalc_customRatios', JSON.stringify(instData.customRatios));
+                                    localStorage.setItem('palliCalc_institutionName', instData.name);
+                                }
+                            }
+                        } else {
+                            // If Personal/Standard VIP, make sure we use DEFAULT ratios
+                            localStorage.removeItem('palliCalc_customRatios');
+                            localStorage.removeItem('palliCalc_institutionName');
+                        }
+
+                        // Determine VIP Status
+                        isVipUser = userData.tier === 'vip' || userData.registeredDuringBeta === true || userData.role === 'institutionUser';
+                    }
+
+                    // --- UI UPDATES (Same as before) ---
+                    let displayName = userData.username || user.email.split('@')[0];
+                    let welcomeText = `Welcome, ${displayName}`;
+                    if (isVipUser) welcomeText += ' VIP';
+                    
+                    if (userInfo) {
+                        userInfo.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px;">
+                                <span class="welcome-text">${welcomeText}</span>
+                                <button id="logout-btn" aria-label="Logout" style="width: 100%; padding: 6px 12px; font-size: 13px;">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </button>
+                            </div>`;
+                    }
+                    
+                    const logoutBtn = document.getElementById('logout-btn');
+                    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+                    
+                    if (actionBtns) actionBtns.classList.add('hidden');
+                    if (toolsSection) toolsSection.classList.add('visible');
+                    if (featureSection) featureSection.style.display = 'none';
+                    if (toolsTitle) toolsTitle.textContent = '🛠️ Tools Available';
+                    
+                    if (vipBadge) vipBadge.style.display = isVipUser ? 'inline' : 'none';
+                    if (vipLock) vipLock.style.display = isVipUser ? 'inline-block' : 'none';
+                    
+                } catch(e) {
+                    console.error('Error fetching profile:', e);
+                }
+                
+            } else {
+                // ✅ LOGOUT STATE
+                // Clear any stored custom ratios so the next user doesn't use them by accident
+                localStorage.removeItem('palliCalc_customRatios');
+                localStorage.removeItem('palliCalc_institutionName');
+
+                if (userInfo) {
+                    userInfo.innerHTML = '<button id="login-btn" class="login-btn" aria-label="Login to access tools">🔐 Login</button>';
+                }
+                
+                if (actionBtns) actionBtns.classList.remove('hidden');
+                if (toolsSection) toolsSection.classList.remove('visible');
+                if (featureSection) featureSection.style.display = '';
+                if (featureTitle) featureTitle.textContent = "What You'll Get";
+                
+                if (vipBadge) vipBadge.style.display = 'none';
+                if (vipLock) vipLock.style.display = 'none';
+
+                const newLoginBtn = document.getElementById('login-btn');
+                if (newLoginBtn) newLoginBtn.addEventListener('click', openLoginModal);
+            }
+        }
+
+        // ✅ NEW: Handle logout - returns to login page with all functions intact
+        async function handleLogout() {
+            try {
+                await auth.signOut();
+                localStorage.removeItem('palliCalcLoginPassword');
+                console.log('Logged out successfully');
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Force UI reset even if Firebase logout fails
+                auth.signOut();
+            }
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            const loginForm = document.getElementById('login-form');
+            // Select the new error box
+            const errorMsgDiv = document.getElementById('login-error-msg'); 
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    // Reset error state on new attempt
+                    if(errorMsgDiv) errorMsgDiv.style.display = 'none';
+                    
+                    const email = document.getElementById('login-email').value.trim();
+                    const password = document.getElementById('login-password').value;
+                    const submitBtn = loginForm.querySelector('.login-btn-submit');
+                    
+                    // Loading state
+                    const originalBtnText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = 'Logging in...';
+                    
+                    try {
+                        await auth.signInWithEmailAndPassword(email, password);
+                        localStorage.setItem('palliCalcLoginPassword', password);
+                        console.log('Login password saved to localStorage for calculator use');
+                        closeLoginModal();
+                    } catch (error) {
+                        console.error("Login Error:", error.code);
+                        
+                        // Define friendly error messages
+                        let userMessage = "An unexpected error occurred. Please try again.";
+                        
+                        // Handle specific Firebase errors
+                        switch (error.code) {
+                            case 'auth/invalid-credential': // New standard error for wrong pass/email
+                            case 'auth/user-not-found':
+                            case 'auth/wrong-password':
+                                userMessage = "Incorrect email or password.";
+                                break;
+                            case 'auth/invalid-email':
+                                userMessage = "Invalid email address format.";
+                                break;
+                            case 'auth/too-many-requests':
+                                userMessage = "Too many failed attempts. Please reset your password or try again later.";
+                                break;
+                            case 'auth/user-disabled':
+                                userMessage = "This account has been disabled.";
+                                break;
+                        }
+
+                        // Show the error in the HTML div (No more Alert!)
+                        if (errorMsgDiv) {
+                            errorMsgDiv.textContent = userMessage;
+                            errorMsgDiv.style.display = 'block';
+                        } else {
+                            // Fallback if div is missing
+                            alert(userMessage);
+                        }
+                    } finally {
+                        // Reset button
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    }
+                });
+            }
+
+            const feedbackForm = document.getElementById('feedback-form');
+            if (feedbackForm) {
+                feedbackForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!db) {
+                        alert('Feedback saved locally. Email: support@pallicalc.com');
+                        return;
+                    }
+                    const feedback = document.getElementById('feedback-text').value.trim();
+                    const email = document.getElementById('feedback-email').value.trim();
+                    
+                    try {
+                        await db.collection('feedback').add({
+                            feedback: feedback,
+                            email: email || 'anonymous',
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            userId: currentUser?.uid || null,
+                            isVip: isVipUser
+                        });
+                        alert('✅ Thank you for your feedback!');
+                        feedbackForm.reset();
+                    } catch(e) {
+                        alert('Feedback saved locally. Email: support@pallicalc.com');
+                    }
+                });
+            }
+
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('#login-btn, #login-btn *')) openLoginModal();
+                if (e.target.matches('#login-close, .login-close *')) closeLoginModal();
+                if (e.target.matches('#login-modal')) closeLoginModal();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeLoginModal();
+            });
+        }
+
+        // ✅ DISCLAIMER MODAL HANDLERS - FULLY INTEGRATED
+        function setupDisclaimerHandlers() {
+            const disclaimerModal = document.getElementById('disclaimer-modal');
+            const disclaimerAgree = document.getElementById('disclaimer-agree');
+            const disclaimerProceed = document.getElementById('disclaimer-proceed');
+            const disclaimerClose = document.getElementById('disclaimer-close');
+            const demoBtn = document.getElementById('demo-btn');
+            const registerBtn = document.getElementById('register-btn');
+
+            if (!disclaimerModal || !demoBtn || !registerBtn) return;
+
+            // Enable/disable proceed button
+            disclaimerAgree.addEventListener('change', function() {
+                disclaimerProceed.disabled = !this.checked;
+                disclaimerProceed.style.background = this.checked ? 'var(--primary-gradient)' : '#94a3b8';
+            });
+
+            // Demo button -> show disclaimer
+            demoBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showDisclaimer('demo');
+            });
+
+            // Register button -> show disclaimer  
+            registerBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showDisclaimer('register');
+            });
+
+            // Proceed after agreement
+            disclaimerProceed.addEventListener('click', function() {
+                if (!disclaimerAgree.checked) return;
+                const action = disclaimerProceed.dataset.action;
+                closeDisclaimer();
+                
+                if (action === 'demo') {
+                    window.location.href = 'Opioid-calculator.html';
+                } else if (action === 'register') {
+                    window.location.href = 'register.html';
+                }
+            });
+
+            // Close disclaimer
+            disclaimerClose.addEventListener('click', closeDisclaimer);
+            disclaimerModal.addEventListener('click', function(e) {
+                if (e.target === disclaimerModal) closeDisclaimer();
+            });
+        }
+
+        function showDisclaimer(action) {
+            const disclaimerModal = document.getElementById('disclaimer-modal');
+            const disclaimerProceed = document.getElementById('disclaimer-proceed');
+            const disclaimerAgree = document.getElementById('disclaimer-agree');
+            
+            disclaimerModal.style.display = 'flex';
+            disclaimerProceed.dataset.action = action;
+            disclaimerAgree.checked = false;
+            disclaimerProceed.disabled = true;
+            disclaimerProceed.style.background = '#94a3b8';
+            disclaimerAgree.focus();
+        }
+
+        function closeDisclaimer() {
+            document.getElementById('disclaimer-modal').style.display = 'none';
+        }
+
+        function openLoginModal() {
+            document.getElementById('login-modal').style.display = 'flex';
+            document.getElementById('login-email').focus();
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('login-form').reset();
+            
+            // Hide the error message when closing so it's not there when you come back
+            const errorDiv = document.getElementById('login-error-msg');
+            if(errorDiv) errorDiv.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
