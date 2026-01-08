@@ -6,6 +6,10 @@
     <title>Opioid & Morfin | Panduan Pesakit</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
@@ -98,6 +102,8 @@
             color: white !important; border: none !important; border-radius: 50% !important; 
             font-size: 24px !important; cursor: pointer !important; 
             box-shadow: 0 8px 25px rgba(102,126,234,0.4) !important; z-index: 1000 !important;
+            /* Hidden by default, shown only for personal users via JS */
+            display: none; 
         }
         .settings-btn:active { transform: scale(0.95) !important; }
         
@@ -126,9 +132,22 @@
             .action-buttons { gap: 12px; padding: 8px; }
             .btn { padding: 14px 20px !important; font-size: 15px !important; }
         }
+
+        /* Loading Overlay for PDF */
+        #pdf-loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 3000;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
     </style>
 </head>
 <body>
+    <div id="pdf-loading">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 20px; border: .25em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spinner-border .75s linear infinite;"></div>
+        <div style="font-weight: bold; color: #555;">Menjana PDF...</div>
+        <style>@keyframes spinner-border { to { transform: rotate(360deg); } }</style>
+    </div>
+
     <div class="header">
         <h1>🩺 Opioid & Morfin</h1>
         <p>Panduan melegakan kesakitan dan keselesaan</p>
@@ -235,7 +254,7 @@
         </button>
     </div>
 
-    <button class="settings-btn no-print" onclick="openSettings()" title="Tetapan Klinik" style="display:none;">
+    <button id="settingsBtn" class="settings-btn no-print" onclick="openSettings()" title="Tetapan Klinik">
         <i class="bi bi-gear-fill"></i>
     </button>
 
@@ -256,11 +275,10 @@
         <div class="modal-content">
             <span class="close" onclick="closeSettings()">&times;</span>
             <h3 style="margin: 0 0 24px 0;">⚙️ Tetapan Klinik</h3>
-            <div id="success-msg" class="success-msg"></div>
-            <div id="error-msg" class="error-msg"></div>
+            <div id="success-msg" class="success-msg" style="display:none; color:green; margin-bottom:10px;"></div>
             <div class="form-group">
                 <label>🔐 Kata Laluan</label>
-                <input type="password" id="login-password" placeholder="Masukkan kata laluan utama">
+                <input type="password" id="login-password" placeholder="Kata laluan utama">
             </div>
             <div class="form-group">
                 <label>🏥 Nama Klinik</label>
@@ -278,271 +296,277 @@
                     <img id="logo-preview" style="display:none; max-height: 60px; margin: 10px auto; border-radius: 8px;">
                 </div>
             </div>
-            <button class="save-btn" onclick="saveSettings()">Simpan Tetapan</button>
+            <button class="save-btn" style="background:#00b894; color:white; border:none; padding:10px 20px; border-radius:8px; width:100%;" onclick="saveSettings()">Simpan Tetapan</button>
         </div>
     </div>
+
 <script>
-        // --- 1. SETTINGS HANDLING ---
-        window.addEventListener('DOMContentLoaded', () => {
-            const settingsStr = localStorage.getItem('institutionSettings');
-            const settings = settingsStr ? JSON.parse(settingsStr) : {};
+    // --- FIREBASE INIT ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAioaDxAEh3Cd-8Bvad9RgWXoOzozGeE_s",
+      authDomain: "pallicalc-eabdc.firebaseapp.com",
+      projectId: "pallicalc-eabdc",
+      storageBucket: "pallicalc-eabdc.firebasestorage.app",
+      messagingSenderId: "347532270864",
+      appId: "1:347532270864:web:bfe5bd1b92ccec22dc5995"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    let context = {
+        mode: 'personal', // personal | institution | shared
+        instId: null
+    };
+
+    // --- 1. INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+
+        if (ref) {
+            context.mode = 'shared';
+            context.instId = ref;
+            hideSettingsButton();
+        } else {
+            // Check Auth
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    const snap = await db.collection('users').doc(user.uid).get();
+                    if (snap.exists && (snap.data().role === 'institutionUser' || snap.data().role === 'institutionAdmin')) {
+                        context.mode = 'institution';
+                        context.instId = snap.data().institutionId;
+                        hideSettingsButton();
+                    }
+                }
+                // If Personal Mode
+                if (context.mode === 'personal') {
+                    document.getElementById('settingsBtn').style.display = 'block';
+                    loadLocalSettingsUI();
+                }
+            });
+        }
+    });
+
+    function hideSettingsButton() {
+        document.getElementById('settingsBtn').style.display = 'none';
+    }
+
+    // --- 2. DATA FETCHING ---
+    async function getFooterData() {
+        // A. FIREBASE
+        if (context.mode !== 'personal' && context.instId) {
+            try {
+                const doc = await db.collection('institutions').doc(context.instId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    return {
+                        name: data.headerName || data.name || "",
+                        contact: data.headerContact || "",
+                        logos: data.headerLogos || [] // Expecting Array of Base64
+                    };
+                }
+            } catch (e) {
+                console.error("Firebase fetch error", e);
+            }
+        }
+
+        // B. LOCAL STORAGE (Legacy + New)
+        const settingsStr = localStorage.getItem('institutionSettings');
+        const s = settingsStr ? JSON.parse(settingsStr) : {};
+        const logoArray = s.logo ? [s.logo] : [];
+        return {
+            name: s.name || "",
+            contact: s.contact || "",
+            logos: logoArray
+        };
+    }
+
+    // --- 3. PDF GENERATION ---
+    async function printPDF() {
+        const loading = document.getElementById('pdf-loading');
+        loading.style.display = 'flex';
+
+        try {
+            const footerData = await getFooterData();
+            
+            const { PDFDocument, rgb, StandardFonts } = PDFLib;
+            const pdfUrl = 'opioids-malay.pdf'; 
+            
+            const response = await fetch(pdfUrl);
+            if (!response.ok) throw new Error("PDF Template not found");
+            const existingPdfBytes = await response.arrayBuffer();
+
+            const pdfDoc = await PDFDocument.load(existingPdfBytes);
+            const newPdf = await PDFDocument.create();
+            
+            const helveticaFont = await newPdf.embedFont(StandardFonts.Helvetica);
+            const helveticaBold = await newPdf.embedFont(StandardFonts.HelveticaBold);
+
+            // Process Logos
+            let embeddedLogos = [];
+            if (footerData.logos && footerData.logos.length > 0) {
+                for (const logoSrc of footerData.logos) {
+                    try {
+                        let img;
+                        if (logoSrc.startsWith('data:image/png')) img = await newPdf.embedPng(logoSrc);
+                        else if (logoSrc.startsWith('data:image/jpeg') || logoSrc.startsWith('data:image/jpg')) img = await newPdf.embedJpg(logoSrc);
+                        
+                        if (img) {
+                            const scale = 40 / img.height; 
+                            embeddedLogos.push({ img, width: img.width * scale, height: img.height * scale });
+                        }
+                    } catch (e) { console.warn("Logo embed failed", e); }
+                }
+            }
+
+            const embeddedPages = await newPdf.embedPdf(pdfDoc);
+            const A4_W = 595.28;
+            const A4_H = 841.89;
+            const FOOTER_H = 50;
+
+            for (const page of embeddedPages) {
+                const newPage = newPdf.addPage([A4_W, A4_H]);
+                
+                const scale = Math.min(A4_W / page.width, (A4_H - FOOTER_H) / page.height);
+                const w = page.width * scale;
+                const h = page.height * scale;
+                newPage.drawPage(page, {
+                    x: (A4_W - w) / 2,
+                    y: FOOTER_H,
+                    width: w,
+                    height: h
+                });
+
+                // Footer Line
+                newPage.drawLine({
+                    start: { x: 20, y: FOOTER_H },
+                    end: { x: A4_W - 20, y: FOOTER_H },
+                    thickness: 1,
+                    color: rgb(0.8, 0.8, 0.8)
+                });
+
+                const centerY = FOOTER_H / 2;
+                let currentX = 25;
+
+                // Draw Logos
+                for (const logo of embeddedLogos) {
+                    newPage.drawImage(logo.img, {
+                        x: currentX,
+                        y: centerY - (logo.height / 2),
+                        width: logo.width,
+                        height: logo.height
+                    });
+                    currentX += logo.width + 10; 
+                }
+
+                // Draw Text
+                const name = footerData.name || "PalliCalc Panduan Pesakit";
+                const contact = footerData.contact ? `Hubungi: ${footerData.contact}` : "";
+
+                const nameSize = 10;
+                const contactSize = 8;
+                let textY = contact ? centerY + 5 : centerY - 3;
+
+                const nameW = helveticaBold.widthOfTextAtSize(name, nameSize);
+                newPage.drawText(name, {
+                    x: A4_W - 25 - nameW,
+                    y: textY,
+                    size: nameSize,
+                    font: helveticaBold,
+                    color: rgb(0.2, 0.2, 0.2)
+                });
+
+                if (contact) {
+                    const contactW = helveticaFont.widthOfTextAtSize(contact, contactSize);
+                    newPage.drawText(contact, {
+                        x: A4_W - 25 - contactW,
+                        y: textY - 12,
+                        size: contactSize,
+                        font: helveticaFont,
+                        color: rgb(0.4, 0.4, 0.4)
+                    });
+                }
+            }
+
+            const pdfBytes = await newPdf.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            window.open(URL.createObjectURL(blob), '_blank');
+
+        } catch (e) {
+            alert("PDF Generation Error: " + e.message);
+            console.error(e);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // --- 4. LOCAL SETTINGS UI ---
+    function loadLocalSettingsUI() {
+        const s = localStorage.getItem('institutionSettings');
+        if (s) {
+            const settings = JSON.parse(s);
             if (settings.name) document.getElementById('inst-name-input').value = settings.name;
             if (settings.contact) document.getElementById('inst-contact-input').value = settings.contact;
             if (settings.logo) {
-                const preview = document.getElementById('logo-preview');
-                preview.src = settings.logo;
-                preview.style.display = 'block';
+                document.getElementById('logo-preview').src = settings.logo;
+                document.getElementById('logo-preview').style.display = 'block';
                 document.getElementById('upload-text').style.display = 'none';
             }
-        });
-
-        function handleLogoUpload(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('logo-preview');
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                    document.getElementById('upload-text').style.display = 'none';
-                };
-                reader.readAsDataURL(file);
-            }
         }
+    }
 
-        function saveSettings() {
-            const name = document.getElementById('inst-name-input').value;
-            const contact = document.getElementById('inst-contact-input').value;
-            const password = document.getElementById('login-password').value;
-            const logoSrc = document.getElementById('logo-preview').src;
-            const storedPwd = localStorage.getItem('palliCalcLoginPassword') || "1234";
-            
-            if(password !== storedPwd && password !== "1234") {
-                showMsg('error', 'Kata laluan salah');
-                return;
-            }
-
-            const settings = {
-                name: name,
-                contact: contact,
-                logo: logoSrc && logoSrc.startsWith('data:') ? logoSrc : ''
+    function handleLogoUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('logo-preview').src = e.target.result;
+                document.getElementById('logo-preview').style.display = 'block';
+                document.getElementById('upload-text').style.display = 'none';
             };
-
-            localStorage.setItem('institutionSettings', JSON.stringify(settings));
-            showMsg('success', 'Tetapan berjaya disimpan!');
-            setTimeout(closeSettings, 1500);
+            reader.readAsDataURL(input.files[0]);
         }
+    }
 
-        // --- 2. ADVANCED PRINT FUNCTION (A4 RESIZE + UPDATED FOOTER) ---
-        async function printPDF() {
-            const btn = document.querySelector('.btn-pdf');
-            const originalText = btn.innerHTML;
-            const pdfUrl = 'opioids-malay.pdf'; 
-            
-            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Menjana...'; 
-            
-            try {
-                // 1. Fetch PDF
-                const response = await fetch(pdfUrl);
-                if (!response.ok) throw new Error(`PDF File Not Found (Error ${response.status}). Check filename.`);
-                const existingPdfBytes = await response.arrayBuffer();
-                
-                // 2. Load Libraries
-                const { PDFDocument, rgb, StandardFonts } = PDFLib;
-                
-                // 3. Load Original PDF
-                const originalPdf = await PDFDocument.load(existingPdfBytes);
-                
-                // 4. Create NEW PDF
-                const newPdf = await PDFDocument.create();
-                
-                // 5. Get Fonts
-                const helveticaFont = await newPdf.embedFont(StandardFonts.Helvetica);
-                const helveticaBold = await newPdf.embedFont(StandardFonts.HelveticaBold);
-
-                // 6. Get Settings & Handle Default Text
-                const settingsStr = localStorage.getItem('institutionSettings');
-                const settings = settingsStr ? JSON.parse(settingsStr) : {};
-                
-                let name = settings.name || "";
-                let contact = settings.contact ? `Hubungi: ${settings.contact}` : "";
-                const logoDataUrl = settings.logo;
-                let isDefaultMsg = false;
-
-                // LOGIC: Default Fallback Message
-                if (!name && !contact) {
-                    name = "Selamat datang ke PalliCalc, log masuk untuk menetapkan info dan logo.";
-                    contact = ""; 
-                    isDefaultMsg = true;
-                }
-
-                // 7. Embed Logo
-                let logoImage = null;
-                let logoDims = null;
-                if (logoDataUrl) {
-                    try {
-                        if (logoDataUrl.startsWith('data:image/png')) {
-                            logoImage = await newPdf.embedPng(logoDataUrl);
-                        } else if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
-                            logoImage = await newPdf.embedJpg(logoDataUrl);
-                        }
-                        if (logoImage) {
-                            // Scale logo (Max height 40 units)
-                            const logoScale = 40 / logoImage.height; 
-                            logoDims = logoImage.scale(logoScale);
-                        }
-                    } catch (e) { console.warn("Logo skipped.", e); }
-                }
-
-               // 8. Define A4 Dimensions & Footer Space
-                const A4_WIDTH = 595.28;
-                const A4_HEIGHT = 841.89;
-                
-                // --- UPDATE: REDUCED FOOTER HEIGHT ---
-                const FOOTER_HEIGHT = 50; 
-                
-                const contentMaxWidth = A4_WIDTH; 
-                const contentMaxHeight = A4_HEIGHT - FOOTER_HEIGHT; 
-
-                // 9. Process Pages
-                const embeddedPages = await newPdf.embedPdf(originalPdf);
-
-                embeddedPages.forEach((embeddedPage) => {
-                    // Create strictly A4 Page
-                    const newPage = newPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-
-                    // Calculate Scaling 
-                    const scaleX = contentMaxWidth / embeddedPage.width;
-                    const scaleY = contentMaxHeight / embeddedPage.height;
-                    const scale = Math.min(scaleX, scaleY); 
-
-                    const scaledWidth = embeddedPage.width * scale;
-                    const scaledHeight = embeddedPage.height * scale;
-
-                    const xCentered = (A4_WIDTH - scaledWidth) / 2;
-                    
-                    // Draw Original Page 
-                    newPage.drawPage(embeddedPage, {
-                        x: xCentered,
-                        y: FOOTER_HEIGHT, // Starts exactly above footer line
-                        width: scaledWidth,
-                        height: scaledHeight,
-                    });
-
-                    // --- FOOTER SECTION ---
-                    
-                    // --- UPDATE: WIDE SEPARATOR LINE (Almost edge to edge) ---
-                    newPage.drawLine({
-                        start: { x: 20, y: FOOTER_HEIGHT },
-                        end: { x: A4_WIDTH - 20, y: FOOTER_HEIGHT },
-                        thickness: 1.5,
-                        color: rgb(0.7, 0.7, 0.7),
-                    });
-
-                    // --- UPDATE: ADJUSTED MARGINS TO MATCH LINE ---
-                    const leftMargin = 25; 
-                    const rightMargin = 25;
-                    const footerCenterY = FOOTER_HEIGHT / 2; 
-
-                    // A. Draw Logo on LEFT
-                    if (logoImage && logoDims) {
-                        newPage.drawImage(logoImage, {
-                            x: leftMargin,
-                            y: footerCenterY - (logoDims.height / 2),
-                            width: logoDims.width,
-                            height: logoDims.height,
-                        });
-                    }
-
-                    // B. Draw Text on RIGHT (Right Aligned)
-                    const nameSize = 10; 
-                    const contactSize = 8; 
-                    const textColor = isDefaultMsg ? rgb(0.6, 0.6, 0.6) : rgb(0.1, 0.1, 0.1);
-                    const contactColor = rgb(0.3, 0.3, 0.3);
-
-                    let nameY, contactY;
-                    
-                    if (contact) {
-                        nameY = footerCenterY + 4;
-                        contactY = footerCenterY - 10;
-                    } else {
-                        nameY = footerCenterY - 3; 
-                    }
-
-                    const nameWidth = helveticaBold.widthOfTextAtSize(name, nameSize);
-                    
-                    newPage.drawText(name, {
-                        x: A4_WIDTH - rightMargin - nameWidth, 
-                        y: nameY,
-                        size: nameSize,
-                        font: helveticaBold,
-                        color: textColor,
-                    });
-
-                    if (contact) {
-                        const contactWidth = helveticaFont.widthOfTextAtSize(contact, contactSize);
-                        newPage.drawText(contact, {
-                            x: A4_WIDTH - rightMargin - contactWidth,
-                            y: contactY,
-                            size: contactSize,
-                            font: helveticaFont,
-                            color: contactColor,
-                        });
-                    }
-                });
-
-                // 10. Save and Open
-                const pdfBytes = await newPdf.save();
-                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                const blobUrl = URL.createObjectURL(blob);
-                
-                window.open(blobUrl, '_blank');
-                btn.innerHTML = originalText;
-
-            } catch (err) {
-                console.error("Print Failed:", err);
-                alert("Error: " + err.message);
-                window.open(pdfUrl, '_blank');
-                btn.innerHTML = originalText;
-            }
-        }
-
-        // --- 3. UI HELPERS ---
-        function goBack() { window.history.back(); }
+    function saveSettings() {
+        const pwd = document.getElementById('login-password').value;
+        const stored = localStorage.getItem('palliCalcLoginPassword');
         
-        function showQR() {
-            const modal = document.getElementById('qr-modal');
-            const container = document.getElementById('qrcode');
-            container.innerHTML = ''; 
-            modal.style.display = 'flex';
-            new QRCode(container, {
-                text: window.location.href, 
-                width: 180,
-                height: 180
-            });
+        if (stored && pwd !== stored) {
+            alert("Kata laluan salah");
+            return;
         }
 
-        function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
+        const settings = {
+            name: document.getElementById('inst-name-input').value,
+            contact: document.getElementById('inst-contact-input').value,
+            logo: document.getElementById('logo-preview').src
+        };
+        localStorage.setItem('institutionSettings', JSON.stringify(settings));
         
-        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
-        
-        function closeSettings() { 
-            document.getElementById('settings-modal').style.display = 'none'; 
-            document.getElementById('success-msg').style.display = 'none';
-            document.getElementById('error-msg').style.display = 'none';
-        }
+        const msg = document.getElementById('success-msg');
+        msg.textContent = "Tetapan berjaya disimpan!";
+        msg.style.display = 'block';
+        setTimeout(() => {
+            msg.style.display = 'none';
+            closeSettings();
+        }, 1000);
+    }
 
-        function showMsg(type, text) {
-            const el = document.getElementById(type + '-msg');
-            el.textContent = text;
-            el.style.display = 'block';
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.style.display = "none";
-            }
-        }
-    </script>
+    // --- 5. UI HELPERS ---
+    function goBack() { window.history.back(); }
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+    function showQR() {
+        const m = document.getElementById('qr-modal');
+        const c = document.getElementById('qrcode');
+        c.innerHTML = '';
+        m.style.display = 'flex';
+        new QRCode(c, { text: window.location.href, width: 180, height: 180 });
+    }
+    function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
+    window.onclick = e => { if(e.target.classList.contains('modal')) e.target.style.display='none'; };
+</script>
 </body>
 </html>

@@ -574,21 +574,19 @@
             counterTimeout = setTimeout(updateCounters, 500);
         }
 
-// Update counters: Users & Institutions
+// Optimized updateCounters() using count() aggregation
 async function updateCounters() {
     if (!db) return;
     try {
-        // 1. Count Total Users (All documents in 'users')
-        const usersSnapshot = await db.collection('users').get();
-        const totalUsers = usersSnapshot.size || 0;
-        const userEl = document.getElementById('total-users');
-        if(userEl) userEl.textContent = totalUsers;
+        // Count Users (Server-side aggregation)
+        const usersQuery = await db.collection('users').count().get();
+        const totalUsers = usersQuery.data().count;
+        document.getElementById('total-users').textContent = totalUsers;
 
-        // 2. Count Total Institutions (All documents in 'institutions')
-        const instSnapshot = await db.collection('institutions').get();
-        const totalInst = instSnapshot.size || 0;
-        const instEl = document.getElementById('total-institutions');
-        if(instEl) instEl.textContent = totalInst;
+        // Count Institutions (Server-side aggregation)
+        const instQuery = await db.collection('institutions').count().get();
+        const totalInst = instQuery.data().count;
+        document.getElementById('total-institutions').textContent = totalInst;
 
     } catch(e) {
         console.error('Counters unavailable:', e);
