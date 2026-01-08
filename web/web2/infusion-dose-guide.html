@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Infusion Calculation Guide</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        max-width: 480px;
+        margin: 20px auto;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #1e293b;
+        background: linear-gradient(135deg, #f8fafc 0%, #e3f2fd 100%);
+    }
+    h1 { color: #0b3d91; text-align: center; border-bottom: 3px solid #007bff; padding-bottom: 10px; margin-bottom: 30px; }
+    
+    /* Section Headers */
+    .section-header {
+        background: #007bff;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-top: 40px;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .section-header i { font-size: 1.2em; }
+    
+    h2 { 
+        color: #007bff; 
+        font-size: 16px; 
+        margin-top: 20px; 
+        margin-bottom: 10px;
+        padding-left: 5px;
+    }
+    
+    .formula-box {
+        background: white; border: 2px solid #e2e8f0; border-left: 4px solid #007bff; border-radius: 8px;
+        padding: 15px; margin: 10px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    
+    .formula {
+        font-size: 15px; font-weight: bold; color: #0b3d91; text-align: center;
+        margin: 10px 0; padding: 10px; background: #f1f5f9; border-radius: 6px;
+    }
+    
+    .fraction { display: inline-block; text-align: center; vertical-align: middle; }
+    .fraction .top { display: block; border-bottom: 1px solid #000; padding: 0 2px; }
+    .fraction .bottom { display: block; padding: 2px 2px 0 2px; }
+    
+    .step-number {
+        display: inline-block; background: #007bff; color: white; width: 24px; height: 24px;
+        border-radius: 50%; text-align: center; line-height: 24px; font-weight: bold; margin-right: 8px; font-size: 14px;
+    }
+    
+    .back-btn {
+        display: block; margin: 30px auto; padding: 12px 24px; background: #007bff;
+        color: white; border-radius: 6px; text-decoration: none; text-align: center; font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0,123,255,0.2); transition: transform 0.2s;
+    }
+    .back-btn:active { transform: scale(0.98); }
+
+    /* Standard concentrations table */
+    .conc-table {
+        width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 5px;
+    }
+    .conc-table td { border-bottom: 1px solid #eee; padding: 6px 0; }
+    .conc-table tr:last-child td { border-bottom: none; }
+    .highlight { color: #dc3545; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="offline-banner" style="display:none; background: #ffeeba; color: #856404; padding: 10px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 15px;">
+    ⚠️ You are Offline. Navigation Disabled.
+</div>
+
+<h1><i class="bi bi-calculator"></i> Calculation Guide</h1>
+
+<div class="section-header">
+    <i class="bi bi-speedometer2"></i>
+    <span>Part A: Calculating Patient Dose</span>
+</div>
+<p style="font-size: 13px; color: #64748b; margin-top: 5px;">Use this when checking a running pump to see how much drug the patient is receiving.</p>
+
+<h2><span class="step-number">1</span> Calculate Concentration</h2>
+<div class="formula-box">
+    <p>Determine how much drug is in every milliliter.</p>
+    <div class="formula">
+        Conc (mg/ml) = 
+        <span class="fraction">
+            <span class="top">Total Drug Amount (mg)</span>
+            <span class="bottom">Total Syringe Volume (ml)</span>
+        </span>
+    </div>
+</div>
+
+<h2><span class="step-number">2</span> Calculate Hourly Dose</h2>
+<div class="formula-box">
+    <p>Multiply concentration by the running rate.</p>
+    <div class="formula">
+        Dose/hr = Conc × Rate (ml/hr)
+    </div>
+</div>
+
+<h2><span class="step-number">3</span> Calculate 24-Hour Dose</h2>
+<div class="formula-box">
+    <p>Project the dose over a full day.</p>
+    <div class="formula">
+        Dose/24hr = Dose/hr × 24
+    </div>
+</div>
+
+<h2><span class="step-number">4</span> Duration Safety Check</h2>
+<div class="formula-box">
+    <p>Ensure the syringe volume is sufficient.</p>
+    <div class="formula">
+        Duration = 
+        <span class="fraction">
+            <span class="top">Total Volume (ml)</span>
+            <span class="bottom">Rate (ml/hr)</span>
+        </span>
+    </div>
+    <p class="highlight" style="font-size: 13px; margin-top: 5px;">⚠️ If Duration < 24 hours, the pump will empty early.</p>
+</div>
+
+
+<div class="section-header" style="background: #28a745; margin-top: 50px;">
+    <i class="bi bi-syringe"></i>
+    <span>Part B: Preparing a Syringe</span>
+</div>
+<p style="font-size: 13px; color: #64748b; margin-top: 5px;">Use this when mixing a new syringe to determine volumes and diluent needed.</p>
+
+<h2><span class="step-number">1</span> Calculate Drug Volumes</h2>
+<div class="formula-box">
+    <p>Convert the required dose (mg) into volume (ml) using standard concentrations.</p>
+    <div class="formula">
+        Drug Vol (ml) = 
+        <span class="fraction">
+            <span class="top">Prescribed Dose</span>
+            <span class="bottom">Concentration</span>
+        </span>
+    </div>
+    <table class="conc-table">
+        <tr><td><strong>Morphine</strong></td><td>10 mg/ml</td></tr>
+        <tr><td><strong>Fentanyl</strong></td><td>50 mcg/ml</td></tr>
+        <tr><td><strong>Hyoscine</strong></td><td>20 mg/ml</td></tr>
+        <tr><td><strong>Midazolam</strong></td><td>5 mg/ml (or 1mg/ml)</td></tr>
+        <tr><td><strong>Levomepromazine</strong></td><td>25 mg/ml</td></tr>
+    </table>
+</div>
+
+<h2><span class="step-number">2</span> Total Drug Volume</h2>
+<div class="formula-box">
+    <p>Add the volume of every drug being added to the syringe.</p>
+    <div class="formula">
+        Total Drug Vol = Vol A + Vol B + Vol C...
+    </div>
+</div>
+
+<h2><span class="step-number">3</span> Calculate Diluent</h2>
+<div class="formula-box">
+    <p>Determine how much saline/water to add to reach the target syringe size (e.g., 22ml).</p>
+    <div class="formula">
+        Diluent = Target Volume - Total Drug Vol
+    </div>
+    <p class="highlight" style="font-size: 13px; margin-top: 5px;">⚠️ If Total Drug Vol > Target Volume, you need a larger syringe or more concentrated drugs.</p>
+</div>
+
+<h2><span class="step-number">4</span> Set Infusion Rate</h2>
+<div class="formula-box">
+    <p>Calculate the rate to run the syringe over 24 hours.</p>
+    <div class="formula">
+        Rate (ml/hr) = 
+        <span class="fraction">
+            <span class="top">Target Volume (ml)</span>
+            <span class="bottom">24 hours</span>
+        </span>
+    </div>
+    <p style="font-size: 13px; color: #555;"><em>Example: 22ml ÷ 24hr ≈ 0.92 ml/hr</em></p>
+</div>
+
+<a href="javascript:history.back()" class="back-btn" id="back-btn"><i class="bi bi-arrow-left"></i> Back</a>
+
+<script>
+    function checkOffline() {
+        const banner = document.getElementById('offline-banner');
+        const btn = document.getElementById('back-btn');
+        if (!navigator.onLine) {
+            banner.style.display = 'block';
+            btn.style.opacity = '0.5';
+            btn.style.pointerEvents = 'none';
+            btn.innerHTML = "<i class='bi bi-lock-fill'></i> Offline (Nav Disabled)";
+        } else {
+            banner.style.display = 'none';
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+            btn.innerHTML = "<i class='bi bi-arrow-left'></i> Back";
+        }
+    }
+    window.addEventListener('offline', checkOffline);
+    window.addEventListener('online', checkOffline);
+    window.addEventListener('load', checkOffline);
+</script>
+
+</body>
+</html>

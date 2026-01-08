@@ -1,0 +1,375 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infusion Dose Calculator | Total Daily Dose</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        /* Layout basics */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 480px;
+            margin: 20px auto;
+            font-size: 14px;
+        }
+        nav {
+            margin-bottom: 16px;
+        }
+        a {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        input, select {
+            display: block;
+            margin-bottom: 18px;
+            font-size: 14px;
+            padding: 6px 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        /* New dose input unit span */
+        .dose-input {
+            display: inline-block;
+            width: 70%;
+        }
+        .unit-span {
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        /* Button system */
+        .btn {
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .btn-primary {
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-success {
+            font-size: 12px;
+            background-color: #28a745;
+            color: white;
+            max-width: 200px;
+        }
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+            font-size: 13px;
+        }
+        .btn-danger:hover {
+            background-color: #b52a37;
+        }
+        /* Result and notes */
+        .result-box {
+            margin-top: 20px;
+            color: black;
+            border: 2px solid red;
+            padding: 15px;
+            background-color: white;
+            white-space: pre-wrap;
+            font-weight: normal;
+            font-size: 14px;
+        }
+        .equivalent-dose {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .total-morphine {
+            font-weight: normal;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .note-title {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .note {
+            margin-top: 2px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #555;
+        }
+        .alert-box {
+            background-color: #ffdddd;
+            border: 1px solid #ff5c5c;
+            color: #a70000;
+            font-weight: bold;
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        /* Tables and forms */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        fieldset {
+            border: 1px solid #ccc;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+        }
+        legend {
+            font-weight: bold;
+            font-size: 16px;
+            padding: 0 5px;
+        }
+        /* Nav bar */
+        .navbar-main {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.3);
+        }
+        .navbar-link {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.3s;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        /* Info icons with tooltip */
+        .info-icon {
+            font-size: 1em;
+            color: #007bff;
+            text-decoration: none;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-left: 4px;
+            vertical-align: baseline;
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+            position: relative;
+            top: -1px;
+            transition: all 0.2s ease;
+        }
+        .info-icon i {
+            font-size: 1.1em;
+        }
+        .info-icon:hover {
+            background-color: #e3f2fd;
+            transform: scale(1.05);
+        }
+        .prn-icon {
+            color: #dc3545 !important;
+        }
+        .prn-icon i {
+            font-size: 1.1em;
+        }
+        .prn-icon:hover {
+            background-color: #f8d7da !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVIGATION -->
+    <nav class="navbar-main">
+        <a href="all-calculators.html" class="navbar-link">
+            <i class="bi bi-house-door"></i> Back to All Calculators
+        </a>
+        <a href="infusion-dose-guide.html" class="navbar-link">Infusion Dose Guide</a>
+    </nav>
+
+    <!-- CALCULATOR PAGE -->
+    <div id="calcPage">
+        <h2>Infusion Pump Dose Calculator</h2>
+        <fieldset>
+            <legend>Enter Pump Contents</legend>
+            <label for="morphineAmount">Amount of Morphine in pump (mg)</label>
+            <input type="number" id="morphineAmount" placeholder="Enter morphine amount" step="any" min="0">
+
+            <label for="fentanylAmount">Amount of Fentanyl in pump (mcg)</label>
+            <input type="number" id="fentanylAmount" placeholder="Enter fentanyl amount" step="any" min="0">
+
+            <label for="hyoscineAmount">Amount of Hyoscine in pump (mg)</label>
+            <input type="number" id="hyoscineAmount" placeholder="Enter hyoscine amount" step="any" min="0">
+
+            <label for="midazolamAmount">Amount of Midazolam in pump (mg)</label>
+            <input type="number" id="midazolamAmount" placeholder="Enter midazolam amount" step="any" min="0">
+
+            <label for="levomepromazineAmount">Amount of Levomepromazine in pump (mg)</label>
+            <input type="number" id="levomepromazineAmount" placeholder="Enter levomepromazine amount" step="any" min="0">
+        </fieldset>
+
+        <fieldset>
+            <legend>Pump Settings</legend>
+            <label for="totalVolume" class="bold-label">Total volume in pump (ml)</label>
+            <input type="number" id="totalVolume" placeholder="Enter total volume (drug + diluent)" step="any" min="0">
+
+            <label for="infusionRate" class="bold-label">Infusion rate (ml/hr)</label>
+            <input type="number" id="infusionRate" placeholder="Enter infusion rate" step="any" min="0">
+        </fieldset>
+
+        <button id="calculateBtn" class="btn btn-primary" onclick="calculateDose()">Calculate Dose over 24 hrs and per hour</button>
+
+        <div id="resultBox" class="result-box" style="display: none;"></div>
+
+        <button id="clearBtn" class="btn btn-danger" style="margin-top: 8px; padding: 8px;" onclick="clearCalculator()">Clear Calculator</button>
+    </div>
+
+    <script>
+        function calculateDose() {
+            const morphineAmount = parseFloat(document.getElementById('morphineAmount').value) || 0;
+            const fentanylAmount = parseFloat(document.getElementById('fentanylAmount').value) || 0;
+            const hyoscineAmount = parseFloat(document.getElementById('hyoscineAmount').value) || 0;
+            const midazolamAmount = parseFloat(document.getElementById('midazolamAmount').value) || 0;
+            const levomepromazineAmount = parseFloat(document.getElementById('levomepromazineAmount').value) || 0;
+            const totalVolume = parseFloat(document.getElementById('totalVolume').value) || 0;
+            const infusionRate = parseFloat(document.getElementById('infusionRate').value) || 0;
+
+            if (totalVolume <= 0 || infusionRate <= 0) {
+                document.getElementById('resultBox').innerText = 'Please enter positive values for total volume and infusion rate.';
+                document.getElementById('resultBox').style.display = 'block';
+                return;
+            }
+
+            // Concentrations per ml
+            const morphineConc = morphineAmount / totalVolume;
+            const fentanylConc = fentanylAmount / totalVolume; // mcg/ml
+            const hyoscineConc = hyoscineAmount / totalVolume;
+            const midazolamConc = midazolamAmount / totalVolume;
+            const levomepromazineConc = levomepromazineAmount / totalVolume;
+
+            // Calculate hourly dose for each drug
+            const morphineDosePerHr = morphineConc * infusionRate;
+            const fentanylDosePerHr = fentanylConc * infusionRate;
+            const hyoscineDosePerHr = hyoscineConc * infusionRate;
+            const midazolamDosePerHr = midazolamConc * infusionRate;
+            const levomepromazineDosePerHr = levomepromazineConc * infusionRate;
+
+            // Calculate how many hours the pump will actually run before empty
+            const hoursPumpLasts = totalVolume / infusionRate;
+
+            // Warning if pump doesn't last 24 hours
+            let warningMessage = '';
+            if (hoursPumpLasts < 24) {
+                warningMessage = `Warning: Pump runs out after ${hoursPumpLasts.toFixed(2)} hours and should be replaced to maintain infusion over 24 hours.`;
+            }
+
+            // Calculate dose over 24 hours (assuming immediate replacement of pump)
+            const morphineDose24h = morphineDosePerHr * 24;
+            const fentanylDose24h = fentanylDosePerHr * 24;
+            const hyoscineDose24h = hyoscineDosePerHr * 24;
+            const midazolamDose24h = midazolamDosePerHr * 24;
+            const levomepromazineDose24h = levomepromazineDosePerHr * 24;
+
+            // Build result HTML
+            let resultHtml = '';
+            if (warningMessage) {
+                resultHtml += `<p class="warning">${warningMessage}</p>`;
+            }
+
+            resultHtml += `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drug</th>
+                            <th>Dose over 24 hours</th>
+                            <th>Dose per hour</th>
+                            <th>Units</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Morphine</td>
+                            <td>${morphineDose24h.toFixed(2)}</td>
+                            <td>${morphineDosePerHr.toFixed(2)}</td>
+                            <td>mg</td>
+                        </tr>
+                        <tr>
+                            <td>Fentanyl</td>
+                            <td>${fentanylDose24h.toFixed(2)}</td>
+                            <td>${fentanylDosePerHr.toFixed(2)}</td>
+                            <td>mcg</td>
+                        </tr>
+                        <tr>
+                            <td>Hyoscine</td>
+                            <td>${hyoscineDose24h.toFixed(2)}</td>
+                            <td>${hyoscineDosePerHr.toFixed(2)}</td>
+                            <td>mg</td>
+                        </tr>
+                        <tr>
+                            <td>Midazolam</td>
+                            <td>${midazolamDose24h.toFixed(2)}</td>
+                            <td>${midazolamDosePerHr.toFixed(2)}</td>
+                            <td>mg</td>
+                        </tr>
+                        <tr>
+                            <td>Levomepromazine</td>
+                            <td>${levomepromazineDose24h.toFixed(2)}</td>
+                            <td>${levomepromazineDosePerHr.toFixed(2)}</td>
+                            <td>mg</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="note">
+                    Assumes continuous infusion with immediate pump replacement if needed. Monitor patient and adjust as clinically appropriate.
+                    <a href="infusion-dose-guide.html" class="info-icon" data-tooltip="Infusion Dose Calculation" aria-label="Infusion dose details" title="View calculation method">
+                        <i class="bi bi-info-circle"></i>
+                    </a>
+                </div>
+            `;
+
+            const resultDiv = document.getElementById('resultBox');
+            resultDiv.innerHTML = resultHtml;
+            resultDiv.style.display = 'block';
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function clearCalculator() {
+            document.querySelectorAll('input[type="number"]').forEach(input => input.value = '');
+            document.getElementById('resultBox').style.display = 'none';
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('calcPage').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

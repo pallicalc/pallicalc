@@ -1,0 +1,427 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Benzodiazepine Configuration</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding-bottom: 40px;
+    }
+    .main-container {
+      max-width: 1100px; /* Wider to accommodate Onset/Duration columns */
+      margin: 40px auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header-bar {
+      background: linear-gradient(135deg, #0d6efd, #0a58ca);
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .content-area {
+      padding: 30px;
+    }
+    .table-responsive {
+      margin-top: 20px;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+    th { background-color: #f8f9fa !important; }
+    
+    .new-row-bg {
+      background-color: #f0f8ff; /* Light blue tint for new rows */
+    }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.9);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loadingOverlay">
+    <div class="spinner-border text-primary mb-3" role="status"></div>
+    <div class="text-muted fw-bold">Loading Configuration...</div>
+  </div>
+
+  <div class="container px-3">
+    <div class="main-container">
+      
+      <div class="header-bar">
+        <div>
+          <h4 class="mb-0 fw-bold"><i class="bi bi-capsule"></i> Benzodiazepine Configuration</h4>
+          <small class="opacity-75">Institution Admin Panel</small>
+        </div>
+        <a href="ratios.html" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-arrow-left"></i> Back
+        </a>
+      </div>
+
+      <div class="content-area">
+        
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+          <i class="bi bi-info-circle-fill me-2"></i>
+          <div>
+            <strong>Instructions:</strong> Check the box "Use" to include a drug.
+            <br><strong>Equiv:</strong> Dose (mg) equivalent to 1mg Alprazolam.
+            <br>To add a custom benzodiazepine, fill in the <strong>empty rows at the bottom</strong>.
+          </div>
+        </div>
+
+        <form onsubmit="return saveRatios(event);">
+          
+          <div class="d-flex justify-content-end mb-3">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="resetToDefaults()">
+              <i class="bi bi-arrow-counterclockwise"></i> Reset Defaults
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="width: 50px;">Use</th>
+                  <th style="width: 100px;">Route</th>
+                  <th style="min-width: 150px;">Drug Name</th>
+                  <th style="width: 100px;">Equiv <small>(mg)</small></th>
+                  <th style="width: 150px;">Onset</th>
+                  <th style="width: 150px;">Duration</th>
+                </tr>
+              </thead>
+              <tbody id="ratioTableBody">
+                </tbody>
+            </table>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="card bg-light border-0">
+            <div class="card-body">
+              <label for="confirmPassword" class="form-label fw-bold">
+                <i class="bi bi-lock-fill"></i> Verify Identity to Save
+              </label>
+              <div class="input-group mb-3">
+                <input type="password" class="form-control" id="confirmPassword" placeholder="Enter your login password" required>
+                <button class="btn btn-primary px-4" type="submit" id="saveBtn">
+                  <i class="bi bi-save"></i> Save Changes
+                </button>
+              </div>
+              <div id="msgArea" class="alert alert-success mt-2" style="display:none;"></div>
+              <div id="errorArea" class="alert alert-danger mt-2" style="display:none;"></div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ================= FIREBASE CONFIG ================= */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAioaDxAEh3Cd-8Bvad9RgWXoOzozGeE_s",
+    authDomain: "pallicalc-eabdc.firebaseapp.com",
+    projectId: "pallicalc-eabdc",
+    storageBucket: "pallicalc-eabdc.firebasestorage.app",
+    messagingSenderId: "347532270864",
+    appId: "1:347532270864:web:bfe5bd1b92ccec22dc5995"
+  };
+
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  /* ================= GLOBAL STATE ================= */
+  let currentInstitutionId = null;
+  let benzoTypes = [];
+  let includedKeys = new Set();
+  
+  // Default Data (Matches Benzodiazepine-calculator.html)
+  const defaultBenzoTypes = [
+      { key: "alprazolam", label: "Alprazolam", route: "PO", equiv: 1, onset: "30 min", duration: "6-20 h" },
+      { key: "lorazepam", label: "Lorazepam", route: "PO", equiv: 2, onset: "30-60 min", duration: "10-20 h" },
+      { key: "bromazepam", label: "Bromazepam", route: "PO", equiv: 6, onset: "30 min - 4 h", duration: "10-20 h" },
+      { key: "midazolam_iv", label: "Midazolam", route: "IV", equiv: 4, onset: "1-3 min", duration: "2-4 h" },
+      { key: "chlordiazepoxide", label: "Chlordiazepoxide", route: "PO", equiv: 50, onset: "1.5 h", duration: "5-30 h" },
+      { key: "midazolam_po", label: "Midazolam", route: "PO", equiv: 10, onset: "10-20 min", duration: "20 min - 3 h" },
+      { key: "clonazepam", label: "Clonazepam", route: "PO", equiv: 1, onset: "1 h", duration: "18-39 h" },
+      { key: "oxazepam", label: "Oxazepam", route: "PO", equiv: 30, onset: "3 h", duration: "3-21 h" },
+      { key: "clorazepate", label: "Clorazepate", route: "PO", equiv: 20, onset: "1 h", duration: "36-200 h" },
+      { key: "quazepam", label: "Quazepam", route: "PO", equiv: 40, onset: "20-45 min", duration: "25-100 h" },
+      { key: "diazepam", label: "Diazepam", route: "PO", equiv: 15, onset: "30 min", duration: "20-50 h" },
+      { key: "temazepam", label: "Temazepam", route: "PO", equiv: 30, onset: "30-60 min", duration: "10-20 h" },
+      { key: "flurazepam", label: "Flurazepam", route: "PO", equiv: 30, onset: "1 h", duration: "12-100 h" },
+      { key: "triazolam", label: "Triazolam", route: "PO", equiv: 0.5, onset: "30 min", duration: "1.6-5.5 h" }
+  ];
+
+  const ROUTES = ["PO", "IV", "SL/Buccal", "IM", "SC"];
+
+  /* ================= AUTH & INIT ================= */
+  auth.onAuthStateChanged(async user => {
+    if (!user) {
+      window.location.href = "index.html";
+      return;
+    }
+
+    try {
+      const snap = await db.collection("users").doc(user.uid).get();
+      if (!snap.exists || snap.data().role !== "institutionAdmin") {
+        alert("Access Denied.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      currentInstitutionId = snap.data().institutionId;
+      if (!currentInstitutionId) throw new Error("No Institution ID linked.");
+
+      await loadRatiosFromFirebase();
+      document.getElementById("loadingOverlay").style.display = "none";
+
+    } catch (e) {
+      console.error(e);
+      alert("Error loading profile: " + e.message);
+      window.location.href = "index.html";
+    }
+  });
+
+  /* ================= LOAD DATA ================= */
+  async function loadRatiosFromFirebase() {
+    try {
+      // NOTE: Using 'benzoRatios' collection instead of 'opioidRatios'
+      const ref = await db.collection("benzoRatios").doc(currentInstitutionId).get();
+      
+      if (ref.exists && ref.data().benzoTypes) {
+        const data = ref.data();
+        benzoTypes = data.benzoTypes;
+        includedKeys = new Set(data.includedKeys || []);
+      } else {
+        benzoTypes = JSON.parse(JSON.stringify(defaultBenzoTypes));
+        includedKeys = new Set(benzoTypes.map(o => o.key));
+      }
+      generateTable();
+    } catch (e) {
+      console.error("Load Failed:", e);
+      showErr("Failed to load data. Please refresh.");
+    }
+  }
+
+  /* ================= RENDER TABLE ================= */
+  function generateTable() {
+    const tbody = document.getElementById("ratioTableBody");
+    tbody.innerHTML = "";
+
+    // 1. Render Existing Items
+    benzoTypes.forEach(b => {
+      const tr = document.createElement("tr");
+      const isChecked = includedKeys.has(b.key) ? "checked" : "";
+      
+      const routeOptions = ROUTES.map(r => 
+        `<option value="${r}" ${r === b.route ? "selected" : ""}>${r}</option>`
+      ).join("");
+
+      // Ensure optional fields have strings
+      const safeOnset = b.onset || "-";
+      const safeDuration = b.duration || "-";
+
+      tr.innerHTML = `
+        <td class="text-center">
+          <input class="form-check-input" type="checkbox" data-key="${b.key}" ${isChecked}>
+        </td>
+        <td>
+          <select class="form-select form-select-sm" data-field="route">${routeOptions}</select>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="name" value="${b.label}" required>
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm" data-field="equiv" step="0.01" min="0" value="${b.equiv}" required>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="onset" value="${safeOnset}">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="duration" value="${safeDuration}">
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 2. Render 5 Empty Rows for New Items
+    for (let i = 1; i <= 5; i++) {
+      const tr = document.createElement("tr");
+      tr.classList.add("new-row-bg"); 
+      
+      const routeOptions = ROUTES.map(r => `<option value="${r}">${r}</option>`).join("");
+
+      tr.innerHTML = `
+        <td class="text-center">
+          <input class="form-check-input" type="checkbox" data-is-new="true">
+        </td>
+        <td>
+          <select class="form-select form-select-sm text-muted" data-field="route">
+            <option value="" selected>Select</option>
+            ${routeOptions}
+          </select>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="name" placeholder="Add New...">
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm" data-field="equiv" step="0.01" min="0" placeholder="1.0">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="onset" placeholder="e.g. 30 min">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="duration" placeholder="e.g. 6-8 h">
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  /* ================= SAVE LOGIC ================= */
+  async function saveRatios(e) {
+    e.preventDefault();
+    const password = document.getElementById("confirmPassword").value;
+    const btn = document.getElementById("saveBtn");
+    
+    // UI Reset
+    document.getElementById("msgArea").style.display = "none";
+    document.getElementById("errorArea").style.display = "none";
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+    try {
+      // 1. Re-auth
+      const user = auth.currentUser;
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+      await user.reauthenticateWithCredential(cred);
+
+      // 2. Scrape Data
+      const newBenzoTypes = [];
+      const newIncludedKeys = [];
+
+      const rows = document.querySelectorAll("#ratioTableBody tr");
+      
+      for (const row of rows) {
+        const checkbox = row.querySelector("input[type='checkbox']");
+        const routeSelect = row.querySelector("select[data-field='route']");
+        const nameInput = row.querySelector("input[data-field='name']");
+        const equivInput = row.querySelector("input[data-field='equiv']");
+        const onsetInput = row.querySelector("input[data-field='onset']");
+        const durInput = row.querySelector("input[data-field='duration']");
+
+        // Skip if user didn't check the box
+        if (!checkbox.checked) continue;
+
+        let key = checkbox.getAttribute("data-key");
+        const route = routeSelect.value;
+        const name = nameInput.value.trim();
+        let equiv = parseFloat(equivInput.value);
+        const onset = onsetInput.value.trim() || "-";
+        const duration = durInput.value.trim() || "-";
+
+        // Validation for checked rows
+        if (!name || isNaN(equiv) || !route) {
+          throw new Error(`Please complete Route, Name, and Equiv for: ${name || "Unnamed"}`);
+        }
+
+        // Generate Key for New Items
+        if (!key) {
+           // Create a safe ID: custom_timestamp_random
+           key = `custom_${Date.now()}_${Math.floor(Math.random() * 100)}`;
+        }
+
+        newBenzoTypes.push({ key, label: name, route, equiv, onset, duration });
+        newIncludedKeys.push(key);
+      }
+
+      // 3. Save to Firestore (benzoRatios collection)
+      await db.collection("benzoRatios").doc(currentInstitutionId).set({
+        benzoTypes: newBenzoTypes,
+        includedKeys: newIncludedKeys,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: user.email
+      });
+
+      // 4. Update Institution Doc (Trigger for Users if needed, though Calculator checks existence)
+      await db.collection("institutions").doc(currentInstitutionId).set({
+        customBenzoRatios: true
+      }, { merge: true });
+
+      showMsg("Success! Configuration updated.");
+      document.getElementById("confirmPassword").value = "";
+      
+      // Update local state and redraw table
+      benzoTypes = newBenzoTypes;
+      includedKeys = new Set(newIncludedKeys);
+      generateTable(); 
+
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/wrong-password') {
+        showErr("Incorrect password.");
+      } else {
+        showErr("Error: " + err.message);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-save"></i> Save Changes';
+    }
+    
+    return false;
+  }
+
+  /* ================= RESET ================= */
+  function resetToDefaults() {
+    if (!confirm("Revert visual table to system defaults? (Must click SAVE to apply)")) return;
+    
+    benzoTypes = JSON.parse(JSON.stringify(defaultBenzoTypes));
+    includedKeys = new Set(benzoTypes.map(o => o.key));
+    generateTable();
+    showMsg("Visuals reset. Enter password and click SAVE to commit.");
+  }
+
+  function showMsg(txt) {
+    const el = document.getElementById("msgArea");
+    el.textContent = txt;
+    el.style.display = "block";
+    el.className = "alert alert-success mt-2";
+  }
+
+  function showErr(txt) {
+    const el = document.getElementById("errorArea");
+    el.textContent = txt;
+    el.style.display = "block";
+    el.className = "alert alert-danger mt-2";
+  }
+
+</script>
+</body>
+</html>
