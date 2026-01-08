@@ -1,0 +1,498 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PalliCalc Member Registration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: #f8fafc; 
+      color: #1e293b; 
+      min-height: 100vh; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 16px; 
+    }
+    .card { 
+      width: 100%; 
+      max-width: 500px; 
+      background: white; 
+      border-radius: 16px; 
+      padding: 32px 24px; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+      position: relative;
+    }
+    .header { text-align: center; margin-bottom: 24px; }
+    .title { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #64748b; }
+    
+    /* Form Styles */
+    .form-group { margin-bottom: 16px; }
+    label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; color: #334155; }
+    .input, select { 
+      width: 100%; 
+      padding: 10px 12px; 
+      border-radius: 8px; 
+      border: 1px solid #cbd5e1; 
+      font-size: 14px; 
+      font-family: inherit; 
+      transition: all 0.2s; 
+    }
+    .input:focus, select:focus { 
+      outline: none; 
+      border-color: #0ea5e9; 
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); 
+    }
+    
+    /* Role Selection */
+    .role-grid { display: grid; gap: 12px; margin-top: 8px; }
+    .role-card {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .role-card:hover { background: #f8fafc; }
+    .role-card.selected { 
+      border-color: #0ea5e9; 
+      background: #f0f9ff; 
+    }
+    .role-content strong { display: block; font-size: 14px; color: #0f172a; margin-bottom: 2px; }
+    .role-content span { font-size: 12px; color: #64748b; display: block; line-height: 1.4; }
+    
+    .institution-section {
+      margin-top: 16px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      display: none;
+    }
+
+    .btn-primary { 
+      width: 100%; 
+      margin-top: 8px; 
+      border: none; 
+      border-radius: 8px; 
+      padding: 12px; 
+      background: #0ea5e9; 
+      color: white; 
+      font-weight: 600; 
+      cursor: pointer; 
+      transition: background 0.2s; 
+    }
+    .btn-primary:hover { background: #0284c7; }
+    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .footer { margin-top: 24px; text-align: center; font-size: 13px; color: #64748b; }
+    .footer a { color: #0ea5e9; text-decoration: none; font-weight: 500; }
+    
+    .error { color: #ef4444; font-size: 13px; margin-top: 8px; min-height: 20px; }
+
+    /* Success Screen Styles */
+    #success-view { display: none; text-align: center; padding: 20px 0; }
+    .success-icon { font-size: 48px; color: #10b981; margin-bottom: 16px; }
+    .success-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+    .success-text { font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px; }
+    .email-display { font-weight: 600; color: #0f172a; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <!-- REGISTRATION FORM VIEW -->
+    <div id="registration-view">
+      <div class="header">
+        <h1 class="title">Create Account</h1>
+        <p class="subtitle">Join PalliCalc for free lifetime access.</p>
+      </div>
+
+      <form id="register-form">
+        
+        <div class="form-group">
+          <label>Username</label>
+          <input id="username" type="text" class="input" required placeholder="Display name">
+        </div>
+
+        <div class="form-group">
+          <label>Occupation</label>
+          <select id="occupation" required>
+            <option value="">Select occupation...</option>
+            <option value="Pharmacist">Pharmacist</option>
+            <option value="Medical Officer">Medical Officer</option>
+            <option value="Consultant Specialist">Consultant Specialist</option>
+            <option value="Staff Nurse">Staff Nurse</option>
+            <option value="Medical Assistant">Medical Assistant</option>
+            <option value="Dentist">Dentist</option>
+            <option value="Allied Health">Allied Health Professional</option>
+            <option value="Student Trainee">Student/Trainee</option>
+            <option value="Other">Other</option>
+          </select>
+          <input id="occupation-other" type="text" class="input" style="margin-top:8px; display:none" placeholder="Specify role">
+        </div>
+
+        <div class="form-group">
+          <label>Country</label>
+          <select id="country" required>
+            <option value="">Select country...</option>
+            <option value="Malaysia">Malaysia</option>
+            <option value="Singapore">Singapore</option>
+            <option value="Brunei">Brunei</option>
+            <option value="Thailand">Thailand</option>
+            <option value="Indonesia">Indonesia</option>
+            <option value="Philippines">Philippines</option>
+            <option value="Vietnam">Vietnam</option>
+            <option value="Cambodia">Cambodia</option>
+            <option value="Laos">Laos</option>
+            <option value="Myanmar">Myanmar</option>
+            <option value="China">China</option>
+            <option value="Hong Kong">Hong Kong</option>
+            <option value="Taiwan">Taiwan</option>
+            <option value="Japan">Japan</option>
+            <option value="South Korea">South Korea</option>
+            <option value="India">India</option>
+            <option value="Pakistan">Pakistan</option>
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="Sri Lanka">Sri Lanka</option>
+            <option value="Nepal">Nepal</option>
+            <option value="Australia">Australia</option>
+            <option value="New Zealand">New Zealand</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Ireland">Ireland</option>
+            <option value="United States">United States</option>
+            <option value="Canada">Canada</option>
+            <option value="Germany">Germany</option>
+            <option value="France">France</option>
+            <option value="Other">Other</option>
+          </select>
+          <input id="country-other" type="text" class="input" style="margin-top:8px; display:none" placeholder="Specify country">
+        </div>
+
+        <div class="form-group">
+          <label>Account Type</label>
+          <div class="role-grid" id="role-container">
+            
+            <label class="role-card selected">
+              <input type="radio" name="role" value="personal" checked style="margin-top:4px">
+              <div class="role-content">
+                <strong>Personal</strong>
+                <span>For individual use on your own device</span>
+              </div>
+            </label>
+
+            <label class="role-card">
+              <input type="radio" name="role" value="institutionUser" style="margin-top:4px">
+              <div class="role-content">
+                <strong>Institution User</strong>
+                <span>Join an existing team (view shared protocols)</span>
+              </div>
+            </label>
+
+            <label class="role-card">
+              <input type="radio" name="role" value="institutionAdmin" style="margin-top:4px">
+              <div class="role-content">
+                <strong>Institution Admin</strong>
+                <span>Create a new team & manage protocols</span>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Dynamic Sections -->
+        <div id="inst-user-section" class="institution-section">
+          <label>Select Institution</label>
+          <select id="institution-select" class="input">
+            <option value="">Select country first...</option>
+          </select>
+        </div>
+
+        <div id="inst-admin-section" class="institution-section">
+          <label>Institution Name</label>
+          <input id="institution-name" type="text" class="input" placeholder="e.g. Hospital Kuala Lumpur Palliative Unit">
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input id="email" type="email" class="input" required placeholder="name@email.com">
+        </div>
+
+        <div class="form-group" style="display: flex; gap: 10px;">
+          <div style="flex:1">
+              <label>Password</label>
+              <input id="password" type="password" class="input" required placeholder="Min 6 chars">
+          </div>
+          <div style="flex:1">
+              <label>Confirm</label>
+              <input id="confirm-password" type="password" class="input" required placeholder="Retype">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Promo Code <span style="font-weight:400; color:#94a3b8">(Optional)</span></label>
+          <input id="promo-code" type="text" class="input" placeholder="Enter code">
+        </div>
+
+        <button type="submit" id="submit-btn" class="btn-primary">Create Account</button>
+        
+        <div id="message" class="error"></div>
+      </form>
+
+      <div class="footer">
+        Already have an account? <a href="index.html">Log in</a>
+      </div>
+    </div>
+
+    <!-- SUCCESS VIEW (Hidden by default) -->
+    <div id="success-view">
+      <div class="success-icon">
+        <i class="bi bi-envelope-check-fill"></i>
+      </div>
+      <h2 class="success-title">Verify Your Email</h2>
+      <p class="success-text">
+        We've sent a verification link to <br>
+        <span id="display-email" class="email-display"></span>
+      </p>
+      <p class="success-text" style="font-size:13px; color:#64748b; background:#f1f5f9; padding:10px; border-radius:8px;">
+        <i class="bi bi-clock-history"></i> Please verify within <strong>24 hours</strong> to fully activate your account.
+      </p>
+      
+      <a href="index.html" class="btn-primary" style="display:block; text-decoration:none; margin-top:20px;">
+        Back to Login
+      </a>
+    </div>
+
+  </div>
+
+  <script>
+    let auth, db;
+
+function normalizeInstitutionName(name) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')        // spaces → dashes
+    .replace(/[^a-z0-9-]/g, ''); // remove symbols
+}
+
+    // Initialize Firebase
+    async function initFirebase() {
+      if (typeof firebase === 'undefined') return;
+      
+const config = {
+          apiKey: "AIzaSyAioaDxAEh3Cd-8Bvad9RgWXoOzozGeE_s", // You were missing the '_' here
+          authDomain: "pallicalc-eabdc.firebaseapp.com",
+          projectId: "pallicalc-eabdc",
+          storageBucket: "pallicalc-eabdc.firebasestorage.app",
+          messagingSenderId: "347532270864",
+          appId: "1:347532270864:web:bfe5bd1b92ccec22dc5995", // You were missing the 'b' here
+          measurementId: "G-6G9C984F8E"
+      };
+      
+      try {
+        firebase.initializeApp(config);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        console.log('Firebase ready');
+      } catch(e) { console.error(e); }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await initFirebase();
+        
+        const form = document.getElementById('register-form');
+        const roleInputs = document.querySelectorAll('input[name="role"]');
+        const countrySelect = document.getElementById('country');
+        const instSelect = document.getElementById('institution-select');
+        
+        // Handle UI changes
+        function updateUI() {
+            document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+            const selected = document.querySelector('input[name="role"]:checked');
+            if(selected) selected.closest('.role-card').classList.add('selected');
+
+            const role = selected ? selected.value : 'personal';
+            document.getElementById('inst-user-section').style.display = role === 'institutionUser' ? 'block' : 'none';
+            document.getElementById('inst-admin-section').style.display = role === 'institutionAdmin' ? 'block' : 'none';
+            
+            instSelect.required = (role === 'institutionUser');
+            document.getElementById('institution-name').required = (role === 'institutionAdmin');
+        }
+
+        roleInputs.forEach(r => r.addEventListener('change', updateUI));
+        
+        // Auto-load institutions
+        countrySelect.addEventListener('change', async () => {
+            const isOther = countrySelect.value === 'Other';
+            document.getElementById('country-other').style.display = isOther ? 'block' : 'none';
+            document.getElementById('country-other').required = isOther;
+
+            const country = isOther ? document.getElementById('country-other').value : countrySelect.value;
+            if(country && country !== 'Other') {
+                await loadInstitutions(country);
+            }
+        });
+
+        document.getElementById('occupation').addEventListener('change', (e) => {
+            const isOther = e.target.value === 'Other';
+            document.getElementById('occupation-other').style.display = isOther ? 'block' : 'none';
+            document.getElementById('occupation-other').required = isOther;
+        });
+
+        async function loadInstitutions(country) {
+            instSelect.innerHTML = '<option>Loading...</option>';
+            try {
+                const snap = await db.collection('institutions')
+                    .where('country', '==', country)
+                    .orderBy('name')
+                    .get();
+                
+                instSelect.innerHTML = '<option value="">Select Institution</option>';
+                if(snap.empty) {
+                    instSelect.innerHTML += '<option disabled>No institutions found</option>';
+                } else {
+                    snap.forEach(doc => {
+                        instSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+                instSelect.innerHTML = '<option value="">Error loading list</option>';
+            }
+        }
+
+        // Submit Handler
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const msg = document.getElementById('message');
+            
+            btn.disabled = true;
+            btn.textContent = 'Creating Account...';
+            msg.textContent = '';
+            
+            try {
+                const email = document.getElementById('email').value.trim().toLowerCase();
+                const password = document.getElementById('password').value;
+                const confirm = document.getElementById('confirm-password').value;
+                const role = document.querySelector('input[name="role"]:checked').value;
+                const countryVal = document.getElementById('country').value;
+                const country = countryVal === 'Other' ? document.getElementById('country-other').value : countryVal;
+                
+                if(password !== confirm) throw new Error("Passwords do not match");
+                if(password.length < 6) throw new Error("Password too short (min 6 chars)");
+
+                // 1. Create User
+                const cred = await auth.createUserWithEmailAndPassword(email, password);
+                const user = cred.user;
+                const uid = user.uid;
+
+                // 2. Institution Logic
+                let instId = null;
+                let instName = null;
+
+if (role === 'institutionAdmin') {
+
+  // 1️⃣ Get institution name
+  instName = document.getElementById('institution-name').value.trim();
+  if (!instName) {
+    throw new Error("Institution name is required.");
+  }
+
+  // 2️⃣ Convert name into Firestore-safe unique ID
+instId = normalizeInstitutionName(instName);
+
+if (!instId) {
+  throw new Error("Institution name must contain letters or numbers.");
+}
+
+
+  // 3️⃣ Reference the document USING THE NAME AS ID
+  const instRef = db.collection('institutions').doc(instId);
+
+  // 4️⃣ TRANSACTION = prevents duplicates forever
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(instRef);
+
+    if (snap.exists) {
+      throw new Error("Institution name already exists.");
+    }
+
+    tx.set(instRef, {
+      name: instName,
+      country: country,
+      adminUid: uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+}
+
+
+else if (role === 'institutionUser') {
+  instId = instSelect.value;
+  if (!instId) {
+    throw new Error("Please select an institution.");
+  }
+}
+
+                // 3. Billing Logic
+                const isMoH = email.endsWith('@moh.gov.my');
+                let needsPaymentLater = !isMoH;
+                if(isMoH && role !== 'institutionAdmin') needsPaymentLater = false;
+                const payMethod = (country === 'Malaysia') ? 'duitnow' : 'paypal';
+
+                // 4. Save Profile
+                await db.collection('users').doc(uid).set({
+                    username: document.getElementById('username').value,
+                    email: email,
+                    occupation: document.getElementById('occupation').value === 'Other' ? document.getElementById('occupation-other').value : document.getElementById('occupation').value,
+                    country: country,
+                    role: role,
+                    isMoH: isMoH,
+                    billingStatus: 'trial-free-lifetime',
+                    futureBilling: needsPaymentLater,
+                    paymentMethod: payMethod,
+                    institutionId: instId,
+                    institutionName: instName,
+                    promoCode: document.getElementById('promo-code').value,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 5. Send Verification Email
+                await user.sendEmailVerification();
+
+                // 6. Show Success Screen
+                document.getElementById('registration-view').style.display = 'none';
+                document.getElementById('success-view').style.display = 'block';
+                document.getElementById('display-email').textContent = email;
+
+            } catch(error) {
+                console.error(error);
+                let text = error.message;
+                if(error.code === 'auth/email-already-in-use') text = "Email already registered.";
+                msg.textContent = text;
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        });
+
+        updateUI();
+    });
+  </script>
+</body>
+</html>

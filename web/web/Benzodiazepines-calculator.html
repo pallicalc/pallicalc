@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Benzodiazepine Equivalence Calculator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <style>
+    /* Exact styles from Opioid Calculator */
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 480px;
+      margin: 20px auto;
+      font-size: 14px;
+    }
+
+    #nav {
+      margin-bottom: 16px;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: normal;
+    }
+
+    input,
+    select {
+      display: block;
+      margin-bottom: 18px;
+      font-size: 14px;
+      padding: 6px 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .dose-input {
+      display: inline-block;
+      width: 70%;
+    }
+
+    .unit-span {
+      display: inline-block;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .btn {
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .btn-primary {
+      font-size: 18px;
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-success {
+      font-size: 12px;
+      background-color: #28a745;
+      color: white;
+      max-width: 200px;
+    }
+
+    .btn-success:hover {
+      background-color: #1e7e34;
+    }
+
+    .btn-danger {
+      background-color: #dc3545;
+      color: white;
+      font-size: 13px;
+    }
+
+    .btn-danger:hover {
+      background-color: #b52a37;
+    }
+
+    /* Result Box Styling */
+    .result-box {
+      margin-top: 20px;
+      color: black;
+      border: 2px solid #007bff;
+      padding: 15px;
+      background-color: white;
+      font-weight: normal;
+      font-size: 14px;
+    }
+
+    .equivalent-dose {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 15px;
+      color: #007bff;
+    }
+
+    /* Comparison Table in Results */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .comparison-table th, .comparison-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .comparison-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    .note {
+      margin-top: 10px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #555;
+      font-style: italic;
+    }
+
+    /* Fieldsets */
+    fieldset {
+      border: 1px solid #ccc;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+    }
+
+    legend {
+      font-weight: bold;
+      font-size: 16px;
+      padding: 0 5px;
+    }
+
+    .fieldset-convert {
+      border: 2px solid #007bff;
+      background-color: #f8faff;
+    }
+
+    .legend-blue {
+      color: #007bff;
+    }
+
+    /* Hidden Inputs */
+    #extraBenzo1,
+    #extraBenzo2,
+    #extraBenzo3 {
+      display: none;
+    }
+
+    /* Edit Table Columns */
+    .select-col { width: 24px; text-align: center; }
+    .route-col { width: 65px; font-weight: bold; text-transform: uppercase; }
+    .name-col { width: 100px; }
+    .data-col { width: 70px; }
+    .equiv-col { width: 50px; }
+
+    /* Nav Bar */
+    .navbar-main {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      padding: 15px;
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 123, 255, 0.3);
+    }
+
+    .navbar-link {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      margin: 0 15px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      transition: background 0.3s;
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .navbar-link:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Edit Page Messages */
+    #editPage .success { color: green; font-size: 13px; margin-top: 6px; display: inline-block; }
+    #editPage .fail { color: red; font-size: 13px; margin-top: 6px; display: inline-block; }
+    
+    /* Edit Table Specifics */
+    #editPage table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px; }
+    #editPage th, #editPage td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+    #editPage th { background: #eee; }
+    #editPage input, #editPage select { margin-bottom: 0; padding: 4px; width: 100%; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar-main">
+    <a href="all-calculators.html" class="navbar-link">
+        <i class="bi bi-house-door"></i> Back to All Calculators
+    </a>
+    <a href="Benzodiazepines-conversion-guide.html" class="navbar-link">📖 Conversion Guide</a>
+  </nav>
+
+  <div id="nav">
+    <span id="toCalcLink" style="display:none;">
+      <a onclick="navigateToCalc()">← Back to Calculator</a>
+    </span>
+    <span id="toEditLink">
+      <a onclick="navigateToEdit()">Edit Equivalence Data</a>
+    </span>
+  </div>
+
+  <div id="calcPage" style="display:none;">
+    <h2>Benzodiazepine Equivalence Calculator</h2>
+
+    <fieldset>
+      <legend>Current Benzodiazepine</legend>
+      <select id="inputRoute1" aria-label="Primary route"></select>
+      <select id="inputName1" aria-label="Primary drug name"></select>
+      <label for="inputDose1">Enter Dose (total daily mg)</label>
+      <input type="number" id="inputDose1" class="dose-input" placeholder="0" />
+      <span id="inputUnit1" class="unit-span">mg</span>
+    </fieldset>
+
+    <button id="showExtraBtn" class="btn btn-success" onclick="toggleExtra()">Add Additional Benzodiazepine</button>
+
+    <fieldset id="extraBenzo1">
+      <legend>Additional Benzodiazepine 1</legend>
+      <select id="inputRoute2"></select>
+      <select id="inputName2"></select>
+      <label>Enter Dose (total daily mg):</label>
+      <input type="number" id="inputDose2" class="dose-input" placeholder="0" />
+      <span id="inputUnit2" class="unit-span">mg</span>
+    </fieldset>
+
+    <fieldset id="extraBenzo2">
+      <legend>Additional Benzodiazepine 2</legend>
+      <select id="inputRoute3"></select>
+      <select id="inputName3"></select>
+      <label>Enter Dose (total daily mg):</label>
+      <input type="number" id="inputDose3" class="dose-input" placeholder="0" />
+      <span id="inputUnit3" class="unit-span">mg</span>
+    </fieldset>
+
+    <fieldset id="extraBenzo3">
+      <legend>Additional Benzodiazepine 3</legend>
+      <select id="inputRoute4"></select>
+      <select id="inputName4"></select>
+      <label>Enter Dose (total daily mg):</label>
+      <input type="number" id="inputDose4" class="dose-input" placeholder="0" />
+      <span id="inputUnit4" class="unit-span">mg</span>
+    </fieldset>
+
+    <fieldset id="convertFinalBox" class="fieldset-convert" style="margin-top:20px;">
+      <legend class="legend-blue">Convert to New Benzodiazepine</legend>
+      <label for="outputRoute">Target Route</label>
+      <select id="outputRoute"></select>
+      <label for="outputName">Target Drug</label>
+      <select id="outputName"></select>
+    </fieldset>
+
+    <button id="convertBtn" class="btn btn-primary" onclick="convert()">Calculate Conversion</button>
+
+    <div id="resultBox" class="result-box" style="display:none;"></div>
+
+    <button id="clearBtn" class="btn btn-danger" style="margin-top:20px; padding:10px;" onclick="clearCalculator()">
+      Clear Calculator
+    </button>
+  </div>
+
+  <div id="editPage" style="display:none;">
+    <h2>Edit Benzodiazepine Data</h2>
+    <p style="font-size:12px; color:#666;">
+        <strong>Equiv Value:</strong> Dose (mg) equivalent to internal standard (Alprazolam 1mg).<br>
+        <strong>Note:</strong> You can edit Onset and Duration text directly here.
+    </p>
+    <form onsubmit="return saveRatios();">
+      <button id="resetBtn" class="btn btn-danger" type="button" onclick="resetToDefaults()">
+        Reset to Default Values
+      </button>
+      <table>
+        <thead>
+          <tr>
+            <th class="select-col">Use</th>
+            <th class="route-col">Route</th>
+            <th class="name-col">Drug Name</th>
+            <th class="equiv-col">Equiv</th>
+            <th class="data-col">Onset</th>
+            <th class="data-col">Duration</th>
+          </tr>
+        </thead>
+        <tbody id="ratioTableBody"></tbody>
+      </table>
+      <label for="passInput">Enter login password to save:</label>
+      <input type="password" id="passInput" autocomplete="off" />
+      <button id="saveBtn" class="btn btn-primary" type="submit">Save Changes</button>
+      <span id="msgArea" class="success" style="display:none;"></span>
+      <span id="errorArea" class="fail" style="display:none;"></span>
+    </form>
+  </div>
+
+  <script>
+    const ROUTES = ["PO", "IV", "SL/Buccal", "IM", "SC"];
+
+    // Default data (Brand names removed, Route updated if necessary)
+    const defaultBenzoTypes = [
+      { key: "alprazolam", label: "Alprazolam", route: "PO", equiv: 1, onset: "30 min", duration: "6-20 h" },
+      { key: "lorazepam", label: "Lorazepam", route: "PO", equiv: 2, onset: "30-60 min", duration: "10-20 h" },
+      { key: "bromazepam", label: "Bromazepam", route: "PO", equiv: 6, onset: "30 min - 4 h", duration: "10-20 h" },
+      { key: "midazolam_iv", label: "Midazolam", route: "IV", equiv: 4, onset: "1-3 min", duration: "2-4 h" },
+      { key: "chlordiazepoxide", label: "Chlordiazepoxide", route: "PO", equiv: 50, onset: "1.5 h", duration: "5-30 h" },
+      { key: "midazolam_po", label: "Midazolam", route: "PO", equiv: 10, onset: "10-20 min", duration: "20 min - 3 h" },
+      { key: "clonazepam", label: "Clonazepam", route: "PO", equiv: 1, onset: "1 h", duration: "18-39 h" },
+      { key: "oxazepam", label: "Oxazepam", route: "PO", equiv: 30, onset: "3 h", duration: "3-21 h" },
+      { key: "clorazepate", label: "Clorazepate", route: "PO", equiv: 20, onset: "1 h", duration: "36-200 h" },
+      { key: "quazepam", label: "Quazepam", route: "PO", equiv: 40, onset: "20-45 min", duration: "25-100 h" },
+      { key: "diazepam", label: "Diazepam", route: "PO", equiv: 15, onset: "30 min", duration: "20-50 h" },
+      { key: "temazepam", label: "Temazepam", route: "PO", equiv: 30, onset: "30-60 min", duration: "10-20 h" },
+      { key: "flurazepam", label: "Flurazepam", route: "PO", equiv: 30, onset: "1 h", duration: "12-100 h" },
+      { key: "triazolam", label: "Triazolam", route: "PO", equiv: 0.5, onset: "30 min", duration: "1.6-5.5 h" }
+    ];
+
+    let benzoTypes = [];
+    let includedKeys = new Set();
+
+    function loadSavedData() {
+      let savedTypes = localStorage.getItem("benzoTypes");
+      let savedIncluded = localStorage.getItem("benzoIncluded");
+
+      if (savedTypes) {
+        benzoTypes = JSON.parse(savedTypes);
+        // Ensure legacy data or edits preserve onset/duration if missing
+        benzoTypes.forEach(bt => {
+            const def = defaultBenzoTypes.find(d => d.key === bt.key);
+            if (def) {
+                if(!bt.onset) bt.onset = def.onset;
+                if(!bt.duration) bt.duration = def.duration;
+            } else {
+                if(!bt.onset) bt.onset = "-";
+                if(!bt.duration) bt.duration = "-";
+            }
+        });
+        
+        if (savedIncluded) {
+          try {
+            const incl = JSON.parse(savedIncluded);
+            if (Array.isArray(incl)) includedKeys = new Set(incl);
+          } catch {}
+        } else {
+             includedKeys = new Set(benzoTypes.map(b => b.key));
+        }
+      } else {
+        benzoTypes = JSON.parse(JSON.stringify(defaultBenzoTypes));
+        includedKeys = new Set(benzoTypes.map(b => b.key));
+      }
+    }
+    loadSavedData();
+
+    // --- Navigation Functions ---
+    function navigateToEdit() {
+      document.getElementById("calcPage").style.display = "none";
+      document.getElementById("editPage").style.display = "block";
+      document.getElementById("toEditLink").style.display = "none";
+      document.getElementById("toCalcLink").style.display = "";
+      document.getElementById("msgArea").style.display = "none";
+      document.getElementById("errorArea").style.display = "none";
+      document.getElementById("passInput").value = "";
+      generateEditTable();
+    }
+
+    function navigateToCalc() {
+      document.getElementById("editPage").style.display = "none";
+      document.getElementById("calcPage").style.display = "block";
+      document.getElementById("toEditLink").style.display = "";
+      document.getElementById("toCalcLink").style.display = "none";
+      fillAllSelects();
+    }
+
+    // --- UI Logic: Dropdowns ---
+    function fillAllSelects() {
+      const inputRoutes = ["inputRoute1", "inputRoute2", "inputRoute3", "inputRoute4"];
+      const inputNames = ["inputName1", "inputName2", "inputName3", "inputName4"];
+      const outputRouteId = "outputRoute";
+      const outputNameId = "outputName";
+
+      // Helper: get unique routes based on included drugs
+      function getAvailableRoutes() {
+        const routes = new Set();
+        benzoTypes.forEach(b => {
+            if(includedKeys.has(b.key)) routes.add(b.route);
+        });
+        return Array.from(routes).sort((a,b) => {
+            if(a === "PO") return -1;
+            if(b === "PO") return 1;
+            return a.localeCompare(b);
+        });
+      }
+
+      function getDrugsForRoute(route) {
+        return benzoTypes
+            .filter(b => b.route === route && includedKeys.has(b.key))
+            .sort((a,b) => a.label.localeCompare(b.label));
+      }
+
+      function populateRouteSelect(selectId) {
+        const sel = document.getElementById(selectId);
+        if(!sel) return;
+        sel.innerHTML = "";
+        
+        const defOpt = document.createElement("option");
+        defOpt.value = "";
+        defOpt.textContent = "Route";
+        sel.appendChild(defOpt);
+
+        getAvailableRoutes().forEach(r => {
+            const opt = document.createElement("option");
+            opt.value = r;
+            opt.textContent = r;
+            sel.appendChild(opt);
+        });
+        sel.selectedIndex = 0;
+      }
+
+      function populateNameSelect(routeId, nameId) {
+        const routeSel = document.getElementById(routeId);
+        const nameSel = document.getElementById(nameId);
+        const selectedRoute = routeSel.value;
+        
+        nameSel.innerHTML = "";
+        const defOpt = document.createElement("option");
+        defOpt.value = "";
+        defOpt.textContent = "Select Drug";
+        nameSel.appendChild(defOpt);
+
+        if(!selectedRoute) return;
+
+        getDrugsForRoute(selectedRoute).forEach(drug => {
+            const opt = document.createElement("option");
+            opt.value = drug.key;
+            opt.textContent = drug.label;
+            nameSel.appendChild(opt);
+        });
+      }
+
+      // Initialize Inputs
+      inputRoutes.forEach((rid, idx) => {
+        populateRouteSelect(rid);
+        populateNameSelect(rid, inputNames[idx]); 
+        document.getElementById(rid).addEventListener("change", () => populateNameSelect(rid, inputNames[idx]));
+      });
+
+      // Initialize Output
+      populateRouteSelect(outputRouteId);
+      populateNameSelect(outputRouteId, outputNameId);
+      document.getElementById(outputRouteId).addEventListener("change", () => populateNameSelect(outputRouteId, outputNameId));
+    }
+
+    // --- Calculation Logic ---
+    let extraCount = 0;
+    function toggleExtra() {
+        extraCount = (extraCount + 1) % 4;
+        const e1 = document.getElementById("extraBenzo1");
+        const e2 = document.getElementById("extraBenzo2");
+        const e3 = document.getElementById("extraBenzo3");
+        const btn = document.getElementById("showExtraBtn");
+
+        if(extraCount === 0) { e1.style.display='none'; e2.style.display='none'; e3.style.display='none'; btn.textContent="Add Additional Benzodiazepine"; }
+        else if(extraCount === 1) { e1.style.display='block'; e2.style.display='none'; e3.style.display='none'; btn.textContent="Add Another Benzodiazepine"; }
+        else if(extraCount === 2) { e1.style.display='block'; e2.style.display='block'; e3.style.display='none'; btn.textContent="Add Another Benzodiazepine"; }
+        else if(extraCount === 3) { e1.style.display='block'; e2.style.display='block'; e3.style.display='block'; btn.textContent="Hide Additional Inputs"; }
+    }
+
+    function getDose(id) {
+        const v = parseFloat(document.getElementById(id).value);
+        return (isNaN(v) || v < 0) ? 0 : v;
+    }
+
+    function getKey(nameId) {
+        return document.getElementById(nameId).value;
+    }
+
+    function convert() {
+        const doses = [ getDose("inputDose1"), getDose("inputDose2"), getDose("inputDose3"), getDose("inputDose4") ];
+        const keys = [ getKey("inputName1"), getKey("inputName2"), getKey("inputName3"), getKey("inputName4") ];
+        const targetKey = getKey("outputName");
+
+        if(!targetKey) { alert("Please select a target benzodiazepine."); return; }
+        if(doses.every(d => d === 0)) { alert("Please enter at least one dose."); return; }
+
+        let totalStandardUnits = 0; 
+        let usedDrugs = [];
+
+        // Calculate Total
+        for(let i=0; i<4; i++) {
+            if(doses[i] > 0 && keys[i]) {
+                const drug = benzoTypes.find(b => b.key === keys[i]);
+                if(drug) {
+                    const units = doses[i] / drug.equiv;
+                    totalStandardUnits += units;
+                    usedDrugs.push({ name: drug.label, dose: doses[i], onset: drug.onset, duration: drug.duration });
+                }
+            }
+        }
+
+        // Convert to Target
+        const targetDrug = benzoTypes.find(b => b.key === targetKey);
+        const resultDose = totalStandardUnits * targetDrug.equiv;
+
+        // Build Result HTML
+        let html = `
+            <div class="equivalent-dose">
+                Total Daily Dose (${targetDrug.label}): <br>
+                <span style="font-size:24px; color:#000;">${parseFloat(resultDose.toFixed(2))} mg</span>
+            </div>
+        `;
+
+        // Comparison Table
+        html += `
+            <strong>Onset & Duration Comparison:</strong>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Drug</th>
+                        <th>Dose (mg)</th>
+                        <th>Onset</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        usedDrugs.forEach(d => {
+            html += `
+                <tr>
+                    <td>${d.name}</td>
+                    <td>${d.dose}</td>
+                    <td>${d.onset}</td>
+                    <td>${d.duration}</td>
+                </tr>
+            `;
+        });
+
+        html += `<tr><td colspan="4" style="text-align:center; background:#eef6ff; color:#007bff; font-weight:bold;"><i class="bi bi-arrow-down"></i> CONVERTED TO <i class="bi bi-arrow-down"></i></td></tr>`;
+
+        html += `
+                <tr style="font-weight:bold; background-color:#e6ffe6;">
+                    <td>${targetDrug.label}</td>
+                    <td>${parseFloat(resultDose.toFixed(2))}</td>
+                    <td>${targetDrug.onset}</td>
+                    <td>${targetDrug.duration}</td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="note">*Values are approximate. Clinical judgment required.*</div>
+        `;
+
+        const rBox = document.getElementById("resultBox");
+        rBox.innerHTML = html;
+        rBox.style.display = 'block';
+        rBox.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function clearCalculator() {
+        document.querySelectorAll('input[type="number"]').forEach(i => i.value="");
+        document.querySelectorAll('select').forEach(s => s.selectedIndex=0);
+        document.getElementById("resultBox").style.display='none';
+        extraCount = 3; 
+        toggleExtra(); 
+    }
+
+    // --- Edit Page Functions ---
+    function generateEditTable() {
+        const tbody = document.getElementById("ratioTableBody");
+        tbody.innerHTML = "";
+        
+        benzoTypes.forEach(b => {
+            const isChecked = includedKeys.has(b.key) ? "checked" : "";
+            const tr = document.createElement("tr");
+            let routeOpts = ROUTES.map(r => `<option value="${r}" ${r===b.route?'selected':''}>${r}</option>`).join("");
+
+            tr.innerHTML = `
+                <td class="select-col"><input type="checkbox" data-key="${b.key}" ${isChecked}></td>
+                <td class="route-col"><select id="editRoute_${b.key}">${routeOpts}</select></td>
+                <td class="name-col"><input type="text" id="editName_${b.key}" value="${b.label}"></td>
+                <td class="equiv-col"><input type="number" step="0.01" id="editEquiv_${b.key}" value="${b.equiv}"></td>
+                <td class="data-col"><input type="text" id="editOnset_${b.key}" value="${b.onset}"></td>
+                <td class="data-col"><input type="text" id="editDur_${b.key}" value="${b.duration}"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Add 2 blank rows for new drugs
+        for(let i=1; i<=2; i++) {
+            let tr = document.createElement("tr");
+            let routeOpts = ROUTES.map(r => `<option value="${r}">${r}</option>`).join("");
+            tr.innerHTML = `
+                <td class="select-col"><input type="checkbox" data-new="${i}"></td>
+                <td class="route-col"><select id="newRoute_${i}">${routeOpts}</select></td>
+                <td class="name-col"><input type="text" id="newName_${i}" placeholder="Name"></td>
+                <td class="equiv-col"><input type="number" step="0.01" id="newEquiv_${i}" placeholder="Eq"></td>
+                <td class="data-col"><input type="text" id="newOnset_${i}" placeholder="Onset"></td>
+                <td class="data-col"><input type="text" id="newDur_${i}" placeholder="Dur"></td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function saveRatios() {
+        const pwd = document.getElementById("passInput").value;
+        const savedPwd = localStorage.getItem("palliCalcLoginPassword");
+        const msg = document.getElementById("msgArea");
+        const err = document.getElementById("errorArea");
+        
+        msg.style.display='none'; err.style.display='none';
+
+        if(!savedPwd) {
+            err.textContent = "Please login on main page first.";
+            err.style.display='inline';
+            return false;
+        }
+        if(pwd !== savedPwd) {
+            err.textContent = "Incorrect password.";
+            err.style.display='inline';
+            return false;
+        }
+
+        const tbody = document.getElementById("ratioTableBody");
+        const rows = tbody.querySelectorAll("tr");
+        let newTypes = [];
+        let newIncluded = [];
+
+        rows.forEach(row => {
+            const cb = row.querySelector("input[type='checkbox']");
+            if(!cb) return;
+
+            let key = cb.getAttribute("data-key");
+            let isNew = cb.getAttribute("data-new");
+
+            if(key) {
+                // Existing
+                if(cb.checked) newIncluded.push(key);
+                
+                const route = document.getElementById(`editRoute_${key}`).value;
+                const name = document.getElementById(`editName_${key}`).value;
+                const equiv = parseFloat(document.getElementById(`editEquiv_${key}`).value);
+                const onset = document.getElementById(`editOnset_${key}`).value;
+                const dur = document.getElementById(`editDur_${key}`).value;
+
+                newTypes.push({ key: key, label: name, route: route, equiv: equiv, onset: onset, duration: dur });
+            } else if (isNew && cb.checked) {
+                // New Drug
+                const i = isNew;
+                const route = document.getElementById(`newRoute_${i}`).value;
+                const name = document.getElementById(`newName_${i}`).value;
+                const equiv = parseFloat(document.getElementById(`newEquiv_${i}`).value);
+                const onset = document.getElementById(`newOnset_${i}`).value;
+                const dur = document.getElementById(`newDur_${i}`).value;
+
+                if(name && equiv) {
+                    const newKey = "custom_" + Date.now() + "_" + i;
+                    newTypes.push({ key: newKey, label: name, route: route, equiv: equiv, onset: onset || "-", duration: dur || "-" });
+                    newIncluded.push(newKey);
+                }
+            }
+        });
+
+        benzoTypes = newTypes;
+        includedKeys = new Set(newIncluded);
+        
+        localStorage.setItem("benzoTypes", JSON.stringify(benzoTypes));
+        localStorage.setItem("benzoIncluded", JSON.stringify(newIncluded));
+
+        msg.textContent = "Data saved!";
+        msg.style.display='inline';
+        document.getElementById("passInput").value = "";
+        
+        setTimeout(() => msg.style.display='none', 2000);
+        return false;
+    }
+
+    function resetToDefaults() {
+        if(!confirm("Reset all benzodiazepine data to defaults?")) return;
+        localStorage.removeItem("benzoTypes");
+        localStorage.removeItem("benzoIncluded");
+        loadSavedData();
+        generateEditTable();
+        alert("Reset complete.");
+    }
+
+    // Initialize
+    document.addEventListener("DOMContentLoaded", () => {
+        navigateToCalc();
+        generateEditTable();
+    });
+
+  </script>
+</body>
+</html>
