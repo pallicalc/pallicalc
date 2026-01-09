@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Opioid Ratio Configuration</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding-bottom: 40px;
+    }
+    .main-container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header-bar {
+      background: linear-gradient(135deg, #0d6efd, #0a58ca);
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .content-area {
+      padding: 30px;
+    }
+    .table-responsive {
+      margin-top: 20px;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+    th { background-color: #f8f9fa !important; }
+    
+    .new-row-bg {
+      background-color: #f0f8ff; /* Light blue tint for new rows */
+    }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.9);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loadingOverlay">
+    <div class="spinner-border text-primary mb-3" role="status"></div>
+    <div class="text-muted fw-bold">Loading Configuration...</div>
+  </div>
+
+  <div class="container px-3">
+    <div class="main-container">
+      
+      <div class="header-bar">
+        <div>
+          <h4 class="mb-0 fw-bold"><i class="bi bi-sliders"></i> Opioid Configuration</h4>
+          <small class="opacity-75">Institution Admin Panel</small>
+        </div>
+        <a href="ratios.html" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-arrow-left"></i> Back
+        </a>
+      </div>
+
+      <div class="content-area">
+        
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+          <i class="bi bi-info-circle-fill me-2"></i>
+          <div>
+            <strong>Instructions:</strong> Check the box "Use" to include an opioid. Uncheck to hide it.
+            <br>To add a custom opioid, fill in the <strong>empty rows at the bottom</strong>.
+          </div>
+        </div>
+
+        <form onsubmit="return saveRatios(event);">
+          
+          <div class="d-flex justify-content-end mb-3">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="resetToDefaults()">
+              <i class="bi bi-arrow-counterclockwise"></i> Reset Defaults
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="width: 50px;">Use</th>
+                  <th style="width: 110px;">Route</th>
+                  <th>Opioid Name</th>
+                  <th style="width: 120px;">Ratio <small class="text-muted">(to PO Morph)</small></th>
+                  <th style="width: 100px;">Unit</th>
+                </tr>
+              </thead>
+              <tbody id="ratioTableBody">
+                </tbody>
+            </table>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="card bg-light border-0">
+            <div class="card-body">
+              <label for="confirmPassword" class="form-label fw-bold">
+                <i class="bi bi-lock-fill"></i> Verify Identity to Save
+              </label>
+              <div class="input-group mb-3">
+                <input type="password" class="form-control" id="confirmPassword" placeholder="Enter your login password" required>
+                <button class="btn btn-primary px-4" type="submit" id="saveBtn">
+                  <i class="bi bi-save"></i> Save Changes
+                </button>
+              </div>
+              <div id="msgArea" class="alert alert-success mt-2" style="display:none;"></div>
+              <div id="errorArea" class="alert alert-danger mt-2" style="display:none;"></div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ================= FIREBASE CONFIG ================= */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAioaDxAEh3Cd-8Bvad9RgWXoOzozGeE_s",
+    authDomain: "pallicalc-eabdc.firebaseapp.com",
+    projectId: "pallicalc-eabdc",
+    storageBucket: "pallicalc-eabdc.firebasestorage.app",
+    messagingSenderId: "347532270864",
+    appId: "1:347532270864:web:bfe5bd1b92ccec22dc5995"
+  };
+
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  /* ================= GLOBAL STATE ================= */
+  let currentInstitutionId = null;
+  let opioidTypes = [];
+  let includedKeys = new Set();
+  
+  // Defaults
+  const defaultOpioidTypes = [
+    { key: "po_morphine", label: "Morphine", unit: "mg", ratio: 1, route: "PO" },
+    { key: "sciv_morphine", label: "Morphine", unit: "mg", ratio: 2, route: "SC/IV" },
+    { key: "po_oxycodone", label: "Oxycodone", unit: "mg", ratio: 1.5, route: "PO" },
+    { key: "sciv_oxycodone", label: "Oxycodone", unit: "mg", ratio: 3, route: "SC/IV" },
+    { key: "po_tramadol", label: "Tramadol", unit: "mg", ratio: 0.2, route: "PO" },
+    { key: "iv_tramadol", label: "Tramadol", unit: "mg", ratio: 0.2, route: "IV" },
+    { key: "po_codeine", label: "Codeine", unit: "mg", ratio: 0.1, route: "PO" },
+    { key: "po_dihydrocodeine", label: "Dihydrocodeine", unit: "mg", ratio: 0.1, route: "PO" },
+    { key: "td_fentanyl_patch", label: "Fentanyl Patch", unit: "mcg/hr", ratio: 2.4, route: "TD" },
+    { key: "sciv_fentanyl", label: "Fentanyl", unit: "mcg", ratio: 0.1, route: "SC/IV" }
+  ];
+
+  const ROUTES = ["PO", "SC", "IV", "SC/IV", "TD", "SL", "NAS"];
+
+  /* ================= AUTH & INIT ================= */
+  auth.onAuthStateChanged(async user => {
+    if (!user) {
+      window.location.href = "index.html";
+      return;
+    }
+
+    try {
+      const snap = await db.collection("users").doc(user.uid).get();
+      if (!snap.exists || snap.data().role !== "institutionAdmin") {
+        alert("Access Denied.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      currentInstitutionId = snap.data().institutionId;
+      if (!currentInstitutionId) throw new Error("No Institution ID linked.");
+
+      await loadRatiosFromFirebase();
+      document.getElementById("loadingOverlay").style.display = "none";
+
+    } catch (e) {
+      console.error(e);
+      alert("Error loading profile: " + e.message);
+      window.location.href = "index.html";
+    }
+  });
+
+  /* ================= LOAD DATA ================= */
+  async function loadRatiosFromFirebase() {
+    try {
+      const ref = await db.collection("opioidRatios").doc(currentInstitutionId).get();
+      
+      if (ref.exists && ref.data().opioidTypes) {
+        const data = ref.data();
+        opioidTypes = data.opioidTypes;
+        includedKeys = new Set(data.includedKeys || []);
+      } else {
+        opioidTypes = JSON.parse(JSON.stringify(defaultOpioidTypes));
+        includedKeys = new Set(opioidTypes.map(o => o.key));
+      }
+      generateTable();
+    } catch (e) {
+      console.error("Load Failed:", e);
+      showErr("Failed to load data. Please refresh.");
+    }
+  }
+
+  /* ================= RENDER TABLE ================= */
+  function generateTable() {
+    const tbody = document.getElementById("ratioTableBody");
+    tbody.innerHTML = "";
+
+    // 1. Render Existing Opioids
+    opioidTypes.forEach(op => {
+      const tr = document.createElement("tr");
+      const isChecked = includedKeys.has(op.key) ? "checked" : "";
+      
+      const routeOptions = ROUTES.map(r => 
+        `<option value="${r}" ${r === op.route ? "selected" : ""}>${r}</option>`
+      ).join("");
+
+      tr.innerHTML = `
+        <td class="text-center">
+          <input class="form-check-input" type="checkbox" data-key="${op.key}" ${isChecked}>
+        </td>
+        <td>
+          <select class="form-select form-select-sm" data-field="route">${routeOptions}</select>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="name" value="${op.label}" required>
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm" data-field="ratio" step="0.0001" min="0" value="${op.ratio}" required>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="unit" value="${op.unit}">
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 2. Render 5 Empty Rows for New Opioids
+    for (let i = 1; i <= 5; i++) {
+      const tr = document.createElement("tr");
+      tr.classList.add("new-row-bg"); // Style to differentiate
+      
+      const routeOptions = ROUTES.map(r => `<option value="${r}">${r}</option>`).join("");
+
+      tr.innerHTML = `
+        <td class="text-center">
+          <input class="form-check-input" type="checkbox" data-is-new="true">
+        </td>
+        <td>
+          <select class="form-select form-select-sm text-muted" data-field="route">
+            <option value="" selected>Select</option>
+            ${routeOptions}
+          </select>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="name" placeholder="Add New Opioid...">
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm" data-field="ratio" step="0.0001" min="0" placeholder="0.0">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="unit" placeholder="mg">
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  /* ================= SAVE LOGIC ================= */
+  async function saveRatios(e) {
+    e.preventDefault();
+    const password = document.getElementById("confirmPassword").value;
+    const btn = document.getElementById("saveBtn");
+    
+    // UI Reset
+    document.getElementById("msgArea").style.display = "none";
+    document.getElementById("errorArea").style.display = "none";
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+    try {
+      // 1. Re-auth
+      const user = auth.currentUser;
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+      await user.reauthenticateWithCredential(cred);
+
+      // 2. Scrape Data
+      const newOpioidTypes = [];
+      const newIncludedKeys = [];
+      const toPoMorphineRatios = {};
+      const fromPoMorphineRatios = {};
+
+      const rows = document.querySelectorAll("#ratioTableBody tr");
+      
+      for (const row of rows) {
+        const checkbox = row.querySelector("input[type='checkbox']");
+        const routeSelect = row.querySelector("select[data-field='route']");
+        const nameInput = row.querySelector("input[data-field='name']");
+        const ratioInput = row.querySelector("input[data-field='ratio']");
+        const unitInput = row.querySelector("input[data-field='unit']");
+
+        // Skip if user didn't check the box
+        if (!checkbox.checked) continue;
+
+        let key = checkbox.getAttribute("data-key");
+        const route = routeSelect.value;
+        const name = nameInput.value.trim();
+        let ratio = parseFloat(ratioInput.value);
+        const unit = unitInput.value.trim();
+
+        // Validation for checked rows
+        if (!name || isNaN(ratio) || !route) {
+          throw new Error(`Please complete all fields (Route, Name, Ratio) for selected item: ${name || "Unnamed"}`);
+        }
+
+        // Generate Key for New Items
+        if (!key) {
+           // Create a safe ID: route + name (lowercase, no spaces)
+           const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+           const safeRoute = route.toLowerCase().replace(/[^a-z0-9]/g, '');
+           key = `${safeRoute}_${safeName}`;
+        }
+
+        // Prevent duplicates in current save
+        if (newOpioidTypes.find(o => o.key === key)) {
+          // If duplicate key exists, append random suffix
+          key = key + "_" + Math.floor(Math.random() * 1000);
+        }
+
+        newOpioidTypes.push({ key, route, label: name, ratio, unit });
+        newIncludedKeys.push(key);
+        toPoMorphineRatios[key] = ratio;
+        fromPoMorphineRatios[key] = (ratio === 0) ? 0 : (1 / ratio);
+      }
+
+      // 3. Save to Firestore
+      await db.collection("opioidRatios").doc(currentInstitutionId).set({
+        opioidTypes: newOpioidTypes,
+        includedKeys: newIncludedKeys,
+        toPoMorphineRatios: toPoMorphineRatios,
+        fromPoMorphineRatios: fromPoMorphineRatios,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: user.email
+      });
+
+      // 4. Update Institution Doc (Trigger for Users)
+      await db.collection("institutions").doc(currentInstitutionId).set({
+        customRatios: true
+      }, { merge: true });
+
+      showMsg("Success! Ratios updated.");
+      document.getElementById("confirmPassword").value = "";
+      
+      // Update local state and redraw table
+      opioidTypes = newOpioidTypes;
+      includedKeys = new Set(newIncludedKeys);
+      generateTable(); // Redraws table so new items become "existing" items
+
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/wrong-password') {
+        showErr("Incorrect password.");
+      } else {
+        showErr("Error: " + err.message);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-save"></i> Save Changes';
+    }
+    
+    return false;
+  }
+
+  /* ================= RESET ================= */
+  function resetToDefaults() {
+    if (!confirm("Revert visual table to system defaults? (Must click SAVE to apply)")) return;
+    
+    opioidTypes = JSON.parse(JSON.stringify(defaultOpioidTypes));
+    includedKeys = new Set(opioidTypes.map(o => o.key));
+    generateTable();
+    showMsg("Visuals reset. Enter password and click SAVE to commit.");
+  }
+
+  function showMsg(txt) {
+    const el = document.getElementById("msgArea");
+    el.textContent = txt;
+    el.style.display = "block";
+    el.className = "alert alert-success mt-2";
+  }
+
+  function showErr(txt) {
+    const el = document.getElementById("errorArea");
+    el.textContent = txt;
+    el.style.display = "block";
+    el.className = "alert alert-danger mt-2";
+  }
+
+</script>
+</body>
+</html>
